@@ -40,43 +40,71 @@ import org.apache.lucene.util.ThreadInterruptedException;
  */
 final class DocumentsWriterFlushControl implements Accountable, Closeable {
   private final long hardMaxBytesPerDWPT;
+  
+  //多线程（持有相同的IndexWriter对象的引用）执行添加/更新操作时，每一个DWPT收集到的IndexByteUsed都会被累加到activeBytes中
   private long activeBytes = 0;
+
+  //待写入到磁盘的索引数据量，如果全局的flush被触发，即使某个ThreadState中的DWPT达不到flush的要求，DWPT中的索引信息也会被累加到flushBytes中(没有触发全局flush的话，则是被累加到activeBytes中)
   private volatile long flushBytes = 0;
+
+  //描述了被标记为flushPending的ThreadState的个数
   private volatile int numPending = 0;
+
   private int numDocsSinceStalled = 0; // only with assert
+
   private final AtomicBoolean flushDeletes = new AtomicBoolean(false);
+
+  //全局flush是否被触发的标志
   private boolean fullFlush = false;
+
   // only for assertion that we don't get stale DWPTs from the pool
   private boolean fullFlushMarkDone = false;
+
   // The flushQueue is used to concurrently distribute DWPTs that are ready to be flushed ie. when a
   // full flush is in
   // progress. This might be triggered by a commit or NRT refresh. The trigger will only walk all
   // eligible DWPTs and
   // mark them as flushable putting them in the flushQueue ready for other threads (ie. indexing
   // threads) to help flushing
+  //存放DWPT的队列，即flush队列，在此队列中的DWPT等待执行doFlush操作
   private final Queue<DocumentsWriterPerThread> flushQueue = new LinkedList<>();
+
   // only for safety reasons if a DWPT is close to the RAM limit
   private final Queue<DocumentsWriterPerThread> blockedFlushes = new LinkedList<>();
+
   // flushingWriters holds all currently flushing writers. There might be writers in this list that
   // are also in the flushQueue which means that writers in the flushingWriters list are not
   // necessarily
   // already actively flushing. They are only in the state of flushing and might be picked up in the
   // future by
   // polling the flushQueue
+  //该Map的key为DWPT，value为DWPT收集的索引信息的大小，当一个ThreadState被标记为flushPending，那么它持有的DWPT对象收集到的索引信息的大小会被添加到当flushingWriters中，同样地一个DWPT执行完doFlush，那么该DWPT对应的索引大小就可以从flushBytes扣除，故它用来维护flushBytes的值
   private final List<DocumentsWriterPerThread> flushingWriters = new ArrayList<>();
 
   private double maxConfiguredRamBuffer = 0;
+
   private long peakActiveBytes = 0; // only with assert
+
   private long peakFlushBytes = 0; // only with assert
+
   private long peakNetBytes = 0; // only with assert
+
   private long peakDelta = 0; // only with assert
+
   private boolean flushByRAMWasDisabled; // only with assert
+
   final DocumentsWriterStallControl stallControl = new DocumentsWriterStallControl();
+
   private final DocumentsWriterPerThreadPool perThreadPool;
+
   private final FlushPolicy flushPolicy;
+
   private boolean closed = false;
+
   private final DocumentsWriter documentsWriter;
+
   private final LiveIndexWriterConfig config;
+
   private final InfoStream infoStream;
 
   DocumentsWriterFlushControl(DocumentsWriter documentsWriter, LiveIndexWriterConfig config) {
@@ -180,12 +208,12 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
     peakFlushBytes = Math.max(peakFlushBytes, flushBytes);
     peakNetBytes = Math.max(peakNetBytes, netBytes());
     peakDelta = Math.max(peakDelta, delta);
-
     return true;
   }
 
   DocumentsWriterPerThread doAfterDocument(DocumentsWriterPerThread perThread, boolean isUpdate) {
     final long delta = perThread.getCommitLastBytesUsedDelta();
+
     synchronized (this) {
       // we need to commit this under lock but calculate it outside of the lock to minimize the time
       // this lock is held
@@ -195,6 +223,7 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
       // flush/activeBytes.
       // In the future we can clean this up to be more intuitive.
       perThread.commitLastBytesUsed(delta);
+
       try {
         /*
          * We need to differentiate here if we are pending since setFlushPending
@@ -203,24 +232,30 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
          */
         if (perThread.isFlushPending()) {
           flushBytes += delta;
+
           assert updatePeaks(delta);
         } else {
           activeBytes += delta;
+
           assert updatePeaks(delta);
+
           if (isUpdate) {
             flushPolicy.onUpdate(this, perThread);
           } else {
             flushPolicy.onInsert(this, perThread);
           }
+
           if (!perThread.isFlushPending() && perThread.ramBytesUsed() > hardMaxBytesPerDWPT) {
             // Safety check to prevent a single DWPT exceeding its RAM limit. This
             // is super important since we can not address more than 2048 MB per DWPT
             setFlushPending(perThread);
           }
         }
+
         return checkout(perThread, false);
       } finally {
         boolean stalled = updateStallState();
+
         assert assertNumDocsSinceStalled(stalled) && assertMemory();
       }
     }
@@ -232,11 +267,13 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
     if (fullFlush) {
       if (perThread.isFlushPending()) {
         checkoutAndBlock(perThread);
+
         return nextPendingFlush();
       }
     } else {
       if (markPending) {
         assert perThread.isFlushPending() == false;
+
         setFlushPending(perThread);
       }
 
@@ -320,6 +357,7 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
     }
 
     stallControl.updateStalled(stall);
+
     return stall;
   }
 
@@ -341,11 +379,17 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
   public synchronized void setFlushPending(DocumentsWriterPerThread perThread) {
     assert !perThread.isFlushPending();
     if (perThread.getNumDocsInRAM() > 0) {
+
       perThread.setFlushPending(); // write access synced
+
       final long bytes = perThread.getLastCommittedBytesUsed();
+
       flushBytes += bytes;
+
       activeBytes -= bytes;
+
       numPending++; // write access synced
+
       assert assertMemory();
     } // don't assert on numDocs since we could hit an abort excp. while selecting that dwpt for
     // flushing
@@ -376,9 +420,13 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
     assert perThread.isHeldByCurrentThread();
     assert perThread.isFlushPending() : "can not block non-pending threadstate";
     assert fullFlush : "can not block if fullFlush == false";
+
     numPending--; // write access synced
+
     blockedFlushes.add(perThread);
+
     boolean checkedOut = perThreadPool.checkout(perThread);
+
     assert checkedOut;
   }
 
@@ -416,19 +464,32 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
 
   DocumentsWriterPerThread nextPendingFlush() {
     int numPending;
+
     boolean fullFlush;
+
     synchronized (this) {
       final DocumentsWriterPerThread poll;
+
+      //先从flushQueue中获取DocumentsWriterPerThread，获取到直接返回
       if ((poll = flushQueue.poll()) != null) {
+        // 更新线程停滞标志
         updateStallState();
+
         return poll;
       }
+
       fullFlush = this.fullFlush;
+
       numPending = this.numPending;
     }
+
+    // 如果标记为flushPending状态的ThreadState的个数大于0，并且当前没有处于full flush状态(主动执行flush)
     if (numPending > 0 && fullFlush == false) { // don't check if we are doing a full flush
+
       for (final DocumentsWriterPerThread next : perThreadPool) {
+
         if (next.isFlushPending()) {
+
           if (next.tryLock()) {
             try {
               if (perThreadPool.isRegistered(next)) {
@@ -494,6 +555,7 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
   DocumentsWriterPerThread obtainAndLock() {
     while (closed == false) {
       final DocumentsWriterPerThread perThread = perThreadPool.getAndLock();
+
       if (perThread.deleteQueue == documentsWriter.deleteQueue) {
         // simply return the DWPT even in a flush all case since we already hold the lock and the
         // DWPT is not stale
@@ -528,13 +590,18 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
     synchronized (this) {
       assert fullFlush == false
           : "called DWFC#markForFullFlush() while full flush is still running";
+
       assert fullFlushMarkDone == false : "full flush collection marker is still set to true";
+
       fullFlush = true;
+
       flushingQueue = documentsWriter.deleteQueue;
       // Set a new delete queue - all subsequent DWPT will use this queue until
       // we do another full flush
+
       perThreadPool
           .lockNewWriters(); // no new thread-states while we do a flush otherwise the seqNo
+
       // accounting might be off
       try {
         // Insert a gap in seqNo of current active thread count, in the worst case each of those
@@ -542,54 +609,74 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
         // if we have some sequence numbers that were never assigned:
         DocumentsWriterDeleteQueue newQueue =
             documentsWriter.deleteQueue.advanceQueue(perThreadPool.size());
+
         seqNo = documentsWriter.deleteQueue.getMaxSeqNo();
+
         documentsWriter.resetDeleteQueue(newQueue);
+
       } finally {
         perThreadPool.unlockNewWriters();
       }
     }
+
+    //构建需要flush的DocumentsWriterPerThread列表
     final List<DocumentsWriterPerThread> fullFlushBuffer = new ArrayList<>();
+
     for (final DocumentsWriterPerThread next :
         perThreadPool.filterAndLock(dwpt -> dwpt.deleteQueue == flushingQueue)) {
       try {
         if (next.getNumDocsInRAM() > 0) {
           final DocumentsWriterPerThread flushingDWPT;
+
           synchronized (this) {
+
             if (next.isFlushPending() == false) {
               setFlushPending(next);
             }
+
             flushingDWPT = checkOutForFlush(next);
           }
+
           assert flushingDWPT != null
               : "DWPT must never be null here since we hold the lock and it holds documents";
+
           assert next == flushingDWPT : "flushControl returned different DWPT";
+
           fullFlushBuffer.add(flushingDWPT);
         } else {
           // it's possible that we get a DWPT with 0 docs if we flush concurrently to
           // threads getting DWPTs from the pool. In this case we simply remove it from
           // the pool and drop it on the floor.
           boolean checkout = perThreadPool.checkout(next);
+
           assert checkout;
         }
       } finally {
         next.unlock();
       }
     }
+
     synchronized (this) {
       /* make sure we move all DWPT that are where concurrently marked as
        * pending and moved to blocked are moved over to the flushQueue. There is
        * a chance that this happens since we marking DWPT for full flush without
        * blocking indexing.*/
       pruneBlockedQueue(flushingQueue);
+
       assert assertBlockedFlushes(documentsWriter.deleteQueue);
+
       flushQueue.addAll(fullFlushBuffer);
+
       updateStallState();
-      fullFlushMarkDone =
-          true; // at this point we must have collected all DWPTs that belong to the old delete
+
+      fullFlushMarkDone = true; // at this point we must have collected all DWPTs that belong to the old delete
       // queue
     }
+
     assert assertActiveDeleteQueue(documentsWriter.deleteQueue);
+
     assert flushingQueue.getLastSequenceNumber() <= flushingQueue.getMaxSeqNo();
+
     return seqNo;
   }
 
@@ -606,11 +693,15 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
   private void pruneBlockedQueue(final DocumentsWriterDeleteQueue flushingQueue) {
     assert Thread.holdsLock(this);
     Iterator<DocumentsWriterPerThread> iterator = blockedFlushes.iterator();
+
     while (iterator.hasNext()) {
       DocumentsWriterPerThread blockedFlush = iterator.next();
+
       if (blockedFlush.deleteQueue == flushingQueue) {
         iterator.remove();
+
         addFlushingDWPT(blockedFlush);
+
         // don't decr pending here - it's already done when DWPT is blocked
         flushQueue.add(blockedFlush);
       }
@@ -624,7 +715,9 @@ final class DocumentsWriterFlushControl implements Accountable, Closeable {
     try {
       if (!blockedFlushes.isEmpty()) {
         assert assertBlockedFlushes(documentsWriter.deleteQueue);
+
         pruneBlockedQueue(documentsWriter.deleteQueue);
+
         assert blockedFlushes.isEmpty();
       }
     } finally {

@@ -383,7 +383,9 @@ public final class PagedBytes implements Accountable {
         if (currentBlock != null) {
           addBlock(currentBlock);
         }
+
         currentBlock = new byte[blockSize];
+
         upto = 0;
       }
       currentBlock[upto++] = b;
@@ -393,6 +395,7 @@ public final class PagedBytes implements Accountable {
     public void writeBytes(byte[] b, int offset, int length) {
       assert b.length >= offset + length
           : "b.length=" + b.length + " offset=" + offset + " length=" + length;
+
       if (length == 0) {
         return;
       }
@@ -401,23 +404,33 @@ public final class PagedBytes implements Accountable {
         if (currentBlock != null) {
           addBlock(currentBlock);
         }
+
         currentBlock = new byte[blockSize];
+
         upto = 0;
       }
 
       final int offsetEnd = offset + length;
+
       while (true) {
         final int left = offsetEnd - offset;
+
         final int blockLeft = blockSize - upto;
+
         if (blockLeft < left) {
           System.arraycopy(b, offset, currentBlock, upto, blockLeft);
+
           addBlock(currentBlock);
+
           currentBlock = new byte[blockSize];
+
           upto = 0;
+
           offset += blockLeft;
         } else {
           // Last block
           System.arraycopy(b, offset, currentBlock, upto, left);
+
           upto += left;
           break;
         }

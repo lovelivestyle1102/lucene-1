@@ -77,11 +77,15 @@ public abstract class Weight implements SegmentCacheable {
    */
   public Matches matches(LeafReaderContext context, int doc) throws IOException {
     ScorerSupplier scorerSupplier = scorerSupplier(context);
+
     if (scorerSupplier == null) {
       return null;
     }
+
     Scorer scorer = scorerSupplier.get(1);
+
     final TwoPhaseIterator twoPhase = scorer.twoPhaseIterator();
+
     if (twoPhase == null) {
       if (scorer.iterator().advance(doc) != doc) {
         return null;
@@ -164,6 +168,7 @@ public abstract class Weight implements SegmentCacheable {
   public BulkScorer bulkScorer(LeafReaderContext context) throws IOException {
 
     Scorer scorer = scorer(context);
+
     if (scorer == null) {
       // No docs match
       return null;
@@ -202,7 +207,9 @@ public abstract class Weight implements SegmentCacheable {
    */
   protected static class DefaultBulkScorer extends BulkScorer {
     private final Scorer scorer;
+
     private final DocIdSetIterator iterator;
+
     private final TwoPhaseIterator twoPhase;
 
     /** Sole constructor. */
@@ -210,8 +217,13 @@ public abstract class Weight implements SegmentCacheable {
       if (scorer == null) {
         throw new NullPointerException();
       }
+
       this.scorer = scorer;
+
+      //ImpactsDISI
       this.iterator = scorer.iterator();
+
+      //通常为null
       this.twoPhase = scorer.twoPhaseIterator();
     }
 
@@ -224,8 +236,12 @@ public abstract class Weight implements SegmentCacheable {
     public int score(LeafCollector collector, Bits acceptDocs, int min, int max)
         throws IOException {
       collector.setScorer(scorer);
+
+      //ImpactsDISI
       DocIdSetIterator scorerIterator = twoPhase == null ? iterator : twoPhase.approximation();
+
       DocIdSetIterator competitiveIterator = collector.competitiveIterator();
+
       DocIdSetIterator filteredIterator;
       if (competitiveIterator == null) {
         filteredIterator = scorerIterator;
@@ -236,21 +252,27 @@ public abstract class Weight implements SegmentCacheable {
         if (scorerIterator.docID() != -1) {
           scorerIterator = new StartDISIWrapper(scorerIterator);
         }
+
         if (competitiveIterator.docID() != -1) {
           competitiveIterator = new StartDISIWrapper(competitiveIterator);
         }
+
         // filter scorerIterator to keep only competitive docs as defined by collector
         filteredIterator =
             ConjunctionUtils.intersectIterators(Arrays.asList(scorerIterator, competitiveIterator));
       }
+
       if (filteredIterator.docID() == -1 && min == 0 && max == DocIdSetIterator.NO_MORE_DOCS) {
         scoreAll(collector, filteredIterator, twoPhase, acceptDocs);
+
         return DocIdSetIterator.NO_MORE_DOCS;
       } else {
         int doc = filteredIterator.docID();
+
         if (doc < min) {
           doc = filteredIterator.advance(min);
         }
+
         return scoreRange(collector, filteredIterator, twoPhase, acceptDocs, doc, max);
       }
     }
@@ -273,6 +295,8 @@ public abstract class Weight implements SegmentCacheable {
           if (acceptDocs == null || acceptDocs.get(currentDoc)) {
             collector.collect(currentDoc);
           }
+
+          //postingsEnum
           currentDoc = iterator.nextDoc();
         }
         return currentDoc;

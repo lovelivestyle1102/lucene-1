@@ -83,6 +83,7 @@ abstract class FlushPolicy {
   /** Called by DocumentsWriter to initialize the FlushPolicy */
   protected synchronized void init(LiveIndexWriterConfig indexWriterConfig) {
     this.indexWriterConfig = indexWriterConfig;
+
     infoStream = indexWriterConfig.getInfoStream();
   }
 

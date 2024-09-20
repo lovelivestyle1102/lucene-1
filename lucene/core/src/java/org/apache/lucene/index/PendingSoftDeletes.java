@@ -127,16 +127,21 @@ final class PendingSoftDeletes extends PendingDeletes {
    */
   static int applySoftDeletes(DocIdSetIterator iterator, FixedBitSet bits) throws IOException {
     assert iterator != null;
+
     int newDeletes = 0;
+
     int docID;
+
     DocValuesFieldUpdates.Iterator hasValue =
         iterator instanceof DocValuesFieldUpdates.Iterator
             ? (DocValuesFieldUpdates.Iterator) iterator
             : null;
+
     while ((docID = iterator.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
       if (hasValue == null || hasValue.hasValue()) {
         if (bits.get(docID)) { // doc is live - clear it
           bits.clear(docID);
+
           newDeletes++;
           // now that we know we deleted it and we fully control the hard deletes we can do correct
           // accounting
@@ -198,7 +203,9 @@ final class PendingSoftDeletes extends PendingDeletes {
   private void ensureInitialized(IOSupplier<CodecReader> readerIOSupplier) throws IOException {
     if (dvGeneration == -2) {
       FieldInfos fieldInfos = readFieldInfos();
+
       FieldInfo fieldInfo = fieldInfos.fieldInfo(field);
+
       // we try to only open a reader if it's really necessary ie. indices that are mainly append
       // only might have
       // big segments that don't even have any docs in the soft deletes field. In such a case it's

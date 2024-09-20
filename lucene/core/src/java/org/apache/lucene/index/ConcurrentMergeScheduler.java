@@ -172,7 +172,10 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
           Throwable ignored) {
       }
 
+      //最小4个
       maxThreadCount = Math.max(1, Math.min(4, coreCount / 2));
+
+      //最大9个
       maxMergeCount = maxThreadCount + 5;
     }
   }
@@ -301,14 +304,19 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
     final List<MergeThread> activeMerges = new ArrayList<>();
 
     int threadIdx = 0;
+
     while (threadIdx < mergeThreads.size()) {
       final MergeThread mergeThread = mergeThreads.get(threadIdx);
+
       if (!mergeThread.isAlive()) {
         // Prune any dead threads
         mergeThreads.remove(threadIdx);
+
         continue;
       }
+
       activeMerges.add(mergeThread);
+
       threadIdx++;
     }
 
@@ -321,6 +329,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
 
     for (threadIdx = activeMergeCount - 1; threadIdx >= 0; threadIdx--) {
       MergeThread mergeThread = activeMerges.get(threadIdx);
+
       if (mergeThread.merge.estimatedMergeBytes > MIN_BIG_MERGE_MB * 1024 * 1024) {
         bigMergeCount = 1 + threadIdx;
         break;
@@ -365,14 +374,17 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
       }
 
       MergeRateLimiter rateLimiter = mergeThread.rateLimiter;
+
       double curMBPerSec = rateLimiter.getMBPerSec();
 
       if (verbose()) {
         long mergeStartNS = merge.mergeStartNS;
+
         if (mergeStartNS == -1) {
           // IndexWriter didn't start the merge yet:
           mergeStartNS = now;
         }
+
         message.append('\n');
         message.append(
             String.format(
@@ -506,6 +518,8 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
   @Override
   void initialize(InfoStream infoStream, Directory directory) throws IOException {
     super.initialize(infoStream, directory);
+
+    //设置线程数
     initDynamicDefaults(directory);
   }
 
@@ -515,6 +529,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
     if (trigger == MergeTrigger.CLOSING) {
       // Disable throttling on close:
       targetMBPerSec = MAX_MERGE_MB_PER_SEC;
+
       updateMergeThreads();
     }
 
@@ -551,6 +566,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
         // OK to spawn a new merge thread to handle this
         // merge:
         final MergeThread newMergeThread = getMergeThread(mergeSource, merge);
+
         mergeThreads.add(newMergeThread);
 
         updateIOThrottle(newMergeThread.merge, newMergeThread.rateLimiter);
@@ -560,6 +576,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
         }
 
         newMergeThread.start();
+
         updateMergeThreads();
 
         success = true;
@@ -695,6 +712,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
         }
 
         doMerge(mergeSource, merge);
+
         if (verbose()) {
           message(
               String.format(
@@ -787,6 +805,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
     }
 
     double mergeMB = bytesToMB(newMerge.estimatedMergeBytes);
+
     if (mergeMB < MIN_BIG_MERGE_MB) {
       // Only watch non-trivial merges for throttling; this is safe because the MP must eventually
       // have to do larger merges:
@@ -825,6 +844,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
       if (targetMBPerSec > MAX_MERGE_MB_PER_SEC) {
         targetMBPerSec = MAX_MERGE_MB_PER_SEC;
       }
+
       if (verbose()) {
         if (curMBPerSec == targetMBPerSec) {
           message(
@@ -879,7 +899,9 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
     } else {
       rate = targetMBPerSec;
     }
+
     rateLimiter.setMBPerSec(rate);
+
     targetMBPerSecChanged();
   }
 

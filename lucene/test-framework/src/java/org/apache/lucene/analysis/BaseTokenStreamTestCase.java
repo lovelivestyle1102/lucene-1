@@ -202,6 +202,7 @@ public abstract class BaseTokenStreamTestCase extends LuceneTestCase {
 
     // Maps position to the start/end offset:
     final Map<Integer, Integer> posToStartOffset = new HashMap<>();
+
     final Map<Integer, Integer> posToEndOffset = new HashMap<>();
 
     // TODO: would be nice to be able to assert silly duplicated tokens are not created, but a
@@ -1437,18 +1438,22 @@ public abstract class BaseTokenStreamTestCase extends LuceneTestCase {
   public static void assertGraphStrings(TokenStream tokenStream, String... expectedStrings)
       throws IOException {
     Automaton automaton = new TokenStreamToAutomaton().toAutomaton(tokenStream);
+
     Set<IntsRef> actualStringPaths = AutomatonTestUtil.getFiniteStringsRecursive(automaton, -1);
 
     Set<String> expectedStringsSet = new HashSet<>(Arrays.asList(expectedStrings));
 
     BytesRefBuilder scratchBytesRefBuilder = new BytesRefBuilder();
+
     Set<String> actualStrings = new HashSet<>();
+
     for (IntsRef ir : actualStringPaths) {
       actualStrings.add(
           Util.toBytesRef(ir, scratchBytesRefBuilder)
               .utf8ToString()
               .replace((char) TokenStreamToAutomaton.POS_SEP, ' '));
     }
+
     for (String s : actualStrings) {
       assertTrue(
           "Analyzer created unexpected string path: "
@@ -1459,6 +1464,7 @@ public abstract class BaseTokenStreamTestCase extends LuceneTestCase {
               + toString(actualStrings),
           expectedStringsSet.contains(s));
     }
+
     for (String s : expectedStrings) {
       assertTrue(
           "Analyzer created unexpected string path: "

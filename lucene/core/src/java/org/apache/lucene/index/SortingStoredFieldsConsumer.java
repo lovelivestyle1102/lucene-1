@@ -101,6 +101,7 @@ final class SortingStoredFieldsConsumer extends StoredFieldsConsumer {
     StoredFieldsReader reader =
         TEMP_STORED_FIELDS_FORMAT.fieldsReader(
             tmpDirectory, state.segmentInfo, state.fieldInfos, IOContext.DEFAULT);
+
     // Don't pull a merge instance, since merge instances optimize for
     // sequential access while we consume stored fields in random order here.
     StoredFieldsWriter sortWriter =
@@ -109,12 +110,15 @@ final class SortingStoredFieldsConsumer extends StoredFieldsConsumer {
             .fieldsWriter(state.directory, state.segmentInfo, IOContext.DEFAULT);
     try {
       reader.checkIntegrity();
+
       CopyVisitor visitor = new CopyVisitor(sortWriter);
+
       for (int docID = 0; docID < state.segmentInfo.maxDoc(); docID++) {
         sortWriter.startDocument();
         reader.visitDocument(sortMap == null ? docID : sortMap.newToOld(docID), visitor);
         sortWriter.finishDocument();
       }
+
       sortWriter.finish(state.segmentInfo.maxDoc());
     } finally {
       IOUtils.close(reader, sortWriter);

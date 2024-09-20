@@ -71,17 +71,24 @@ public abstract class FieldsConsumer implements Closeable {
    */
   public void merge(MergeState mergeState, NormsProducer norms) throws IOException {
     final List<Fields> fields = new ArrayList<>();
+
     final List<ReaderSlice> slices = new ArrayList<>();
 
     int docBase = 0;
 
+    //获取现在field生成实例，可以拿到正在写入的数据
     for (int readerIndex = 0; readerIndex < mergeState.fieldsProducers.length; readerIndex++) {
+
       final FieldsProducer f = mergeState.fieldsProducers[readerIndex];
 
       final int maxDoc = mergeState.maxDocs[readerIndex];
+
       f.checkIntegrity();
+
       slices.add(new ReaderSlice(docBase, maxDoc, readerIndex));
+
       fields.add(f);
+
       docBase += maxDoc;
     }
 
@@ -90,6 +97,7 @@ public abstract class FieldsConsumer implements Closeable {
             mergeState,
             new MultiFields(
                 fields.toArray(Fields.EMPTY_ARRAY), slices.toArray(ReaderSlice.EMPTY_ARRAY)));
+
     write(mergedFields, norms);
   }
 

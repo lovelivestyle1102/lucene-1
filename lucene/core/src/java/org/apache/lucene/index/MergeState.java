@@ -41,7 +41,13 @@ import org.apache.lucene.util.packed.PackedLongValues;
  */
 public class MergeState {
 
-  /** Maps document IDs from old segments to document IDs in the new segment */
+  /**
+   *
+   * 描述了段中文档号到新段文档号的映射关系
+   *
+   * Maps document IDs from old segments to document IDs in the new segment
+   *
+   **/
   public final DocMap[] docMaps;
 
   /** {@link SegmentInfo} of the newly merged segment. */
@@ -51,27 +57,35 @@ public class MergeState {
   public FieldInfos mergeFieldInfos;
 
   /** Stored field producers being merged */
+  //索引文件fdx&&fdt&&fdm
   public final StoredFieldsReader[] storedFieldsReaders;
 
   /** Term vector producers being merged */
+  //索引文件tvd&&tvx&&tvm
   public final TermVectorsReader[] termVectorsReaders;
 
   /** Norms producers being merged */
+  //索引文件nvd&&nvm
   public final NormsProducer[] normsProducers;
 
   /** DocValues producers being merged */
+  //索引文件dvm&&dvd
   public final DocValuesProducer[] docValuesProducers;
 
   /** FieldInfos being merged */
+  //索引文件fnm
   public final FieldInfos[] fieldInfos;
 
   /** Live docs for each reader */
+  //被删除的文档号信息
   public final Bits[] liveDocs;
 
   /** Postings to merge */
+  //索引文件tim&&tip&&tmd&&doc&&pos&&pay
   public final FieldsProducer[] fieldsProducers;
 
   /** Point readers to merge */
+  //索引文件kdd&&kdi&&kdm
   public final PointsReader[] pointsReaders;
 
   /** Vector readers to merge */
@@ -84,6 +98,7 @@ public class MergeState {
   public final InfoStream infoStream;
 
   /** Indicates if the index needs to be sorted * */
+  //合并后的段是否是排序的
   public boolean needsIndexSort;
 
   /** Sole constructor. */
@@ -91,17 +106,27 @@ public class MergeState {
       throws IOException {
     verifyIndexSort(readers, segmentInfo);
     this.infoStream = infoStream;
+
     int numReaders = readers.size();
 
     maxDocs = new int[numReaders];
+
     fieldsProducers = new FieldsProducer[numReaders];
+
     normsProducers = new NormsProducer[numReaders];
+
     storedFieldsReaders = new StoredFieldsReader[numReaders];
+
     termVectorsReaders = new TermVectorsReader[numReaders];
+
     docValuesProducers = new DocValuesProducer[numReaders];
+
     pointsReaders = new PointsReader[numReaders];
+
     knnVectorsReaders = new KnnVectorsReader[numReaders];
+
     fieldInfos = new FieldInfos[numReaders];
+
     liveDocs = new Bits[numReaders];
 
     int numDocs = 0;
@@ -109,7 +134,9 @@ public class MergeState {
       final CodecReader reader = readers.get(i);
 
       maxDocs[i] = reader.maxDoc();
+
       liveDocs[i] = reader.getLiveDocs();
+
       fieldInfos[i] = reader.getFieldInfos();
 
       normsProducers[i] = reader.getNormsReader();
@@ -149,6 +176,7 @@ public class MergeState {
     segmentInfo.setMaxDoc(numDocs);
 
     this.segmentInfo = segmentInfo;
+
     this.docMaps = buildDocMaps(readers, segmentInfo.getIndexSort());
   }
 

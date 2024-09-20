@@ -42,26 +42,40 @@ class BinaryDocValuesWriter extends DocValuesWriter<BinaryDocValues> {
   private static final int BLOCK_BITS = 12;
 
   private final PagedBytes bytes;
+
   private final DataOutput bytesOut;
 
   private final Counter iwBytesUsed;
+
   private final PackedLongValues.Builder lengths;
+
   private DocsWithFieldSet docsWithField;
+
   private final FieldInfo fieldInfo;
+
   private long bytesUsed;
+
   private int lastDocID = -1;
+
   private int maxLength = 0;
 
   private PackedLongValues finalLengths;
 
   BinaryDocValuesWriter(FieldInfo fieldInfo, Counter iwBytesUsed) {
     this.fieldInfo = fieldInfo;
+
     this.bytes = new PagedBytes(BLOCK_BITS);
+
     this.bytesOut = bytes.getDataOutput();
+
     this.lengths = PackedLongValues.deltaPackedBuilder(PackedInts.COMPACT);
+
     this.iwBytesUsed = iwBytesUsed;
+
     this.docsWithField = new DocsWithFieldSet();
+
     this.bytesUsed = lengths.ramBytesUsed() + docsWithField.ramBytesUsed();
+
     iwBytesUsed.addAndGet(bytesUsed);
   }
 
@@ -72,24 +86,30 @@ class BinaryDocValuesWriter extends DocValuesWriter<BinaryDocValues> {
               + fieldInfo.name
               + "\" appears more than once in this document (only one value is allowed per field)");
     }
+
     if (value == null) {
       throw new IllegalArgumentException(
           "field=\"" + fieldInfo.name + "\": null value not allowed");
     }
+
     if (value.length > MAX_LENGTH) {
       throw new IllegalArgumentException(
           "DocValuesField \"" + fieldInfo.name + "\" is too large, must be <= " + MAX_LENGTH);
     }
 
     maxLength = Math.max(value.length, maxLength);
+
     lengths.add(value.length);
+
     try {
       bytesOut.writeBytes(value.bytes, value.offset, value.length);
     } catch (IOException ioe) {
       // Should never happen!
       throw new RuntimeException(ioe);
     }
+
     docsWithField.add(docID);
+
     updateBytesUsed();
 
     lastDocID = docID;
@@ -118,7 +138,9 @@ class BinaryDocValuesWriter extends DocValuesWriter<BinaryDocValues> {
     if (finalLengths == null) {
       finalLengths = this.lengths.build();
     }
+
     final BinaryDVs sorted;
+
     if (sortMap != null) {
       sorted =
           new BinaryDVs(
@@ -129,6 +151,7 @@ class BinaryDocValuesWriter extends DocValuesWriter<BinaryDocValues> {
     } else {
       sorted = null;
     }
+
     dvConsumer.addBinaryField(
         fieldInfo,
         new EmptyDocValuesProducer() {
@@ -151,6 +174,7 @@ class BinaryDocValuesWriter extends DocValuesWriter<BinaryDocValues> {
   private static class BufferedBinaryDocValues extends BinaryDocValues {
     final BytesRefBuilder value;
     final PackedLongValues.Iterator lengthsIterator;
+    //docId集合
     final DocIdSetIterator docsWithField;
     final DataInput bytesIterator;
 

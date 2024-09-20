@@ -1004,7 +1004,9 @@ final class Lucene90DocValuesProducer extends DocValuesProducer {
   private abstract class BaseSortedSetDocValues extends SortedSetDocValues {
 
     final SortedSetEntry entry;
+
     final IndexInput data;
+
     final TermsEnum termsEnum;
 
     BaseSortedSetDocValues(SortedSetEntry entry, IndexInput data) throws IOException {
@@ -1047,17 +1049,27 @@ final class Lucene90DocValuesProducer extends DocValuesProducer {
     static final int LZ4_DECOMPRESSOR_PADDING = 7;
 
     final TermsDictEntry entry;
+
     final LongValues blockAddresses;
+
     final IndexInput bytes;
+
     final long blockMask;
+
     final LongValues indexAddresses;
+
     final IndexInput indexBytes;
+
     final BytesRef term;
+
     long ord = -1;
 
     BytesRef blockBuffer = null;
+
     ByteArrayDataInput blockInput = null;
+
     long currentCompressedBlockStart = -1;
+
     long currentCompressedBlockEnd = -1;
 
     TermsDict(TermsDictEntry entry, IndexInput data) throws IOException {

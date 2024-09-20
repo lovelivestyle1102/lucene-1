@@ -32,11 +32,17 @@ import org.apache.lucene.search.similarities.Similarity.SimScorer;
 public final class ImpactsDISI extends DocIdSetIterator {
 
   private final DocIdSetIterator in;
+
   private final ImpactsSource impactsSource;
+
   private final MaxScoreCache maxScoreCache;
+
   private final float globalMaxScore;
+
   private float minCompetitiveScore = 0;
+
   private int upTo = DocIdSetIterator.NO_MORE_DOCS;
+
   private float maxScore = Float.MAX_VALUE;
 
   /**
@@ -104,6 +110,7 @@ public final class ImpactsDISI extends DocIdSetIterator {
     }
 
     upTo = advanceShallow(target);
+
     maxScore = maxScoreCache.getMaxScoreForLevel(0);
 
     while (true) {
@@ -118,6 +125,7 @@ public final class ImpactsDISI extends DocIdSetIterator {
       }
 
       final int skipUpTo = maxScoreCache.getSkipUpTo(minCompetitiveScore);
+
       if (skipUpTo == -1) { // no further skipping
         target = upTo + 1;
       } else if (skipUpTo == NO_MORE_DOCS) {
@@ -125,7 +133,9 @@ public final class ImpactsDISI extends DocIdSetIterator {
       } else {
         target = skipUpTo + 1;
       }
+
       upTo = advanceShallow(target);
+
       maxScore = maxScoreCache.getMaxScoreForLevel(0);
     }
   }

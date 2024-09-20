@@ -46,6 +46,7 @@ final class SegmentMerger {
   private final IOContext context;
 
   final MergeState mergeState;
+
   private final FieldInfos.Builder fieldInfosBuilder;
 
   // note, just like in codec apis Directory 'dir' is NOT the same as segmentInfo.dir!!
@@ -61,11 +62,17 @@ final class SegmentMerger {
       throw new IllegalArgumentException(
           "IOContext.context should be MERGE; got: " + context.context);
     }
+
     mergeState = new MergeState(readers, segmentInfo, infoStream);
+
     directory = dir;
+
     this.codec = segmentInfo.getCodec();
+
     this.context = context;
+
     this.fieldInfosBuilder = new FieldInfos.Builder(fieldNumbers);
+
     Version minVersion = Version.LATEST;
     for (CodecReader reader : readers) {
       Version leafMinVersion = reader.getMetaData().getMinVersion();
@@ -77,9 +84,12 @@ final class SegmentMerger {
         minVersion = leafMinVersion;
       }
     }
+
     assert segmentInfo.minVersion == null
         : "The min version should be set by SegmentMerger for merged segments";
+
     segmentInfo.minVersion = minVersion;
+
     if (mergeState.infoStream.isEnabled("SM")) {
       if (segmentInfo.getIndexSort() != null) {
         mergeState.infoStream.message(
@@ -104,9 +114,13 @@ final class SegmentMerger {
     if (!shouldMerge()) {
       throw new IllegalStateException("Merge would result in 0 document segment");
     }
+
+    //合并索引文件fnm
     mergeFieldInfos();
 
+    //合并索引文件fdx&&fdt&&fdm
     int numMerged = mergeWithLogging(this::mergeFields, "stored fields");
+
     assert numMerged == mergeState.segmentInfo.maxDoc()
         : "numMerged="
             + numMerged
@@ -121,6 +135,7 @@ final class SegmentMerger {
             mergeState.mergeFieldInfos,
             null,
             context);
+
     final SegmentReadState segmentReadState =
         new SegmentReadState(
             directory,
@@ -130,21 +145,26 @@ final class SegmentMerger {
             segmentWriteState.segmentSuffix);
 
     if (mergeState.mergeFieldInfos.hasNorms()) {
+      //合并索引文件nvd&&nvm
       mergeWithLogging(this::mergeNorms, segmentWriteState, segmentReadState, "norms", numMerged);
     }
 
+    //合并索引文件tim&&tip&&tmd&&doc&&pos&&pay
     mergeWithLogging(this::mergeTerms, segmentWriteState, segmentReadState, "postings", numMerged);
 
     if (mergeState.mergeFieldInfos.hasDocValues()) {
+      //合并索引文件dvd&&dvm
       mergeWithLogging(
           this::mergeDocValues, segmentWriteState, segmentReadState, "doc values", numMerged);
     }
 
     if (mergeState.mergeFieldInfos.hasPointValues()) {
+      //合并索引文件kdd&&kdi&&kdm
       mergeWithLogging(this::mergePoints, segmentWriteState, segmentReadState, "points", numMerged);
     }
 
     if (mergeState.mergeFieldInfos.hasVectorValues()) {
+
       mergeWithLogging(
           this::mergeVectorValues,
           segmentWriteState,
@@ -154,6 +174,7 @@ final class SegmentMerger {
     }
 
     if (mergeState.mergeFieldInfos.hasVectors()) {
+
       mergeWithLogging(this::mergeTermVectors, "term vectors");
     }
 
@@ -267,13 +288,16 @@ final class SegmentMerger {
     if (mergeState.infoStream.isEnabled("SM")) {
       t0 = System.nanoTime();
     }
+
     int numMerged = merger.merge();
+
     if (mergeState.infoStream.isEnabled("SM")) {
       long t1 = System.nanoTime();
       mergeState.infoStream.message(
           "SM",
           ((t1 - t0) / 1000000) + " msec to merge " + formatName + " [" + numMerged + " docs]");
     }
+
     return numMerged;
   }
 
@@ -288,7 +312,9 @@ final class SegmentMerger {
     if (mergeState.infoStream.isEnabled("SM")) {
       t0 = System.nanoTime();
     }
+
     merger.merge(segmentWriteState, segmentReadState);
+
     if (mergeState.infoStream.isEnabled("SM")) {
       long t1 = System.nanoTime();
       mergeState.infoStream.message(

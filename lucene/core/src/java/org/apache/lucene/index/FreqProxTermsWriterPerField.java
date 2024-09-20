@@ -27,15 +27,23 @@ import org.apache.lucene.util.BytesRef;
 // be configured as any number of files 1..N
 final class FreqProxTermsWriterPerField extends TermsHashPerField {
 
+  //docId，词频，位置等相关信息
   private FreqProxPostingsArray freqProxPostingsArray;
+
   private final FieldInvertState fieldState;
+
   private final FieldInfo fieldInfo;
 
   final boolean hasFreq;
+
   final boolean hasProx;
+
   final boolean hasOffsets;
+
   PayloadAttribute payloadAttribute;
+
   OffsetAttribute offsetAttribute;
+
   TermFrequencyAttribute termFreqAtt;
 
   /** Set to true if any token had a payload in the current segment. */
@@ -47,11 +55,13 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
       FieldInfo fieldInfo,
       TermsHashPerField nextPerField) {
     super(
+        //根据字段设置的索引属性判断使用
         fieldInfo.getIndexOptions().compareTo(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS) >= 0
             ? 2
             : 1,
         termsHash.intPool,
         termsHash.bytePool,
+        //和上面是一个
         termsHash.termBytePool,
         termsHash.bytesUsed,
         nextPerField,
@@ -86,6 +96,7 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
       writeVInt(1, proxCode << 1);
     } else {
       BytesRef payload = payloadAttribute.getPayload();
+
       if (payload != null && payload.length > 0) {
         writeVInt(1, (proxCode << 1) | 1);
         writeVInt(1, payload.length);
@@ -97,6 +108,7 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
     }
 
     assert postingsArray == freqProxPostingsArray;
+
     freqProxPostingsArray.lastPositions[termID] = fieldState.position;
   }
 
@@ -115,31 +127,45 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
     // flush
     final FreqProxPostingsArray postings = freqProxPostingsArray;
 
+    //记录term上一次出现的文档
     postings.lastDocIDs[termID] = docID;
+
+    //这里会对是否有词频做不同的处理
     if (!hasFreq) {
       assert postings.termFreqs == null;
+
       postings.lastDocCodes[termID] = docID;
+
       fieldState.maxTermFrequency = Math.max(1, fieldState.maxTermFrequency);
     } else {
+      //和后面统一，方便反序列化
       postings.lastDocCodes[termID] = docID << 1;
+
+      //频次相关
       postings.termFreqs[termID] = getTermFreq();
+
+      //是否有位置信息
       if (hasProx) {
         writeProx(termID, fieldState.position);
+        //是否有offset信息
         if (hasOffsets) {
           writeOffsets(termID, fieldState.offset);
         }
       } else {
         assert !hasOffsets;
       }
+
       fieldState.maxTermFrequency =
           Math.max(postings.termFreqs[termID], fieldState.maxTermFrequency);
     }
+
     fieldState.uniqueTermCount++;
   }
 
   @Override
   void addTerm(final int termID, final int docID) {
     final FreqProxPostingsArray postings = freqProxPostingsArray;
+
     assert !hasFreq || postings.termFreqs[termID] > 0;
 
     if (!hasFreq) {
@@ -150,15 +176,25 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
                 + getFieldName()
                 + "\": must index term freq while using custom TermFrequencyAttribute");
       }
+
+      //判断和上个docId是否是一个，不是一个的话则需要记录，同一个则不需要重复记录
       if (docID != postings.lastDocIDs[termID]) {
+        //保障docId单调递增的
         // New document; now encode docCode for previous doc:
         assert docID > postings.lastDocIDs[termID];
+
+        //将上次的docCode写入，写入bytePool的buffer中。为重新赋值做准备
         writeVInt(0, postings.lastDocCodes[termID]);
+
+        //记得不是原始值而是本次docId与上次的差值
         postings.lastDocCodes[termID] = docID - postings.lastDocIDs[termID];
+
         postings.lastDocIDs[termID] = docID;
+
         fieldState.uniqueTermCount++;
       }
     } else if (docID != postings.lastDocIDs[termID]) {
+      //如果当前docId和上次的docId不一致的话
       assert docID > postings.lastDocIDs[termID]
           : "id: " + docID + " postings ID: " + postings.lastDocIDs[termID] + " termID: " + termID;
       // Term not yet seen in the current doc but previously
@@ -175,12 +211,17 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
 
       // Init freq for the current document
       postings.termFreqs[termID] = getTermFreq();
+
       fieldState.maxTermFrequency =
           Math.max(postings.termFreqs[termID], fieldState.maxTermFrequency);
+
       postings.lastDocCodes[termID] = (docID - postings.lastDocIDs[termID]) << 1;
+
       postings.lastDocIDs[termID] = docID;
+
       if (hasProx) {
         writeProx(termID, fieldState.position);
+
         if (hasOffsets) {
           postings.lastOffsets[termID] = 0;
           writeOffsets(termID, fieldState.offset);
@@ -188,11 +229,15 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
       } else {
         assert !hasOffsets;
       }
+
       fieldState.uniqueTermCount++;
     } else {
+      //如果docId一致的话
       postings.termFreqs[termID] = Math.addExact(postings.termFreqs[termID], getTermFreq());
+
       fieldState.maxTermFrequency =
           Math.max(fieldState.maxTermFrequency, postings.termFreqs[termID]);
+
       if (hasProx) {
         writeProx(termID, fieldState.position - postings.lastPositions[termID]);
         if (hasOffsets) {
@@ -234,11 +279,15 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
     public FreqProxPostingsArray(
         int size, boolean writeFreqs, boolean writeProx, boolean writeOffsets) {
       super(size);
+
       if (writeFreqs) {
         termFreqs = new int[size];
       }
+
       lastDocIDs = new int[size];
+
       lastDocCodes = new int[size];
+
       if (writeProx) {
         lastPositions = new int[size];
         if (writeOffsets) {
@@ -251,10 +300,19 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
       // writeOffsets);
     }
 
+    // 下标是termID,值是termID对应的在当前处理文档中的频率
     int[] termFreqs; // # times this term occurs in the current doc
+
+    // 下标是termID,值是上一个出现这个term的文档id
     int[] lastDocIDs; // Last docID where this term occurred
+
+    // 下标是termID,值是上一个出现这个term的文档id的编码：docId << 1
     int[] lastDocCodes; // Code for prior doc
+
+    // 下标是termID,值是term在当前文档中上一次出现的position
     int[] lastPositions; // Last position where this term occurred
+
+    // 下标是termID,值是term在当前文档中上一次出现的startOffset（注意这里源码注释不对）
     int[] lastOffsets; // Last endOffset where this term occurred
 
     @Override

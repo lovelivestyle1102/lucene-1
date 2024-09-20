@@ -30,6 +30,8 @@ import org.apache.lucene.util.StringHelper;
 /**
  * Embeds a [read-only] SegmentInfo and adds per-commit fields.
  *
+ * 描述一个段元数据
+ *
  * @lucene.experimental
  */
 public class SegmentCommitInfo {
@@ -175,7 +177,9 @@ public class SegmentCommitInfo {
   /** Called when we succeed in writing a new FieldInfos generation. */
   void advanceFieldInfosGen() {
     fieldInfosGen = nextWriteFieldInfosGen;
+
     nextWriteFieldInfosGen = fieldInfosGen + 1;
+
     generationAdvanced();
   }
 

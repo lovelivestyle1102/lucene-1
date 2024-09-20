@@ -91,6 +91,7 @@ final class DocumentsWriterPerThread implements Accountable {
    */
   void abort() throws IOException {
     aborted = true;
+
     pendingNumDocs.addAndGet(-numDocsInRAM);
     try {
       if (infoStream.isEnabled("DWPT")) {
@@ -109,29 +110,50 @@ final class DocumentsWriterPerThread implements Accountable {
   }
 
   private static final boolean INFO_VERBOSE = false;
+
   final Codec codec;
+
   final TrackingDirectoryWrapper directory;
+
+  //索引处理链
   private final IndexingChain indexingChain;
 
   // Updates for our still-in-RAM (to be flushed next) segment
   private final BufferedUpdates pendingUpdates;
+
   private final SegmentInfo segmentInfo; // Current segment we are working on
+
   private boolean aborted = false; // True if we aborted
+
   private SetOnce<Boolean> flushPending = new SetOnce<>();
+
   private volatile long lastCommittedBytesUsed;
+
   private SetOnce<Boolean> hasFlushed = new SetOnce<>();
 
   private final FieldInfos.Builder fieldInfos;
+
   private final InfoStream infoStream;
+
   private int numDocsInRAM;
+
   final DocumentsWriterDeleteQueue deleteQueue;
+
   private final DeleteSlice deleteSlice;
+
   private final NumberFormat nf = NumberFormat.getInstance(Locale.ROOT);
+
   private final AtomicLong pendingNumDocs;
+
   private final LiveIndexWriterConfig indexWriterConfig;
+
   private final boolean enableTestPoints;
+
+  //获取的时候加锁
   private final ReentrantLock lock = new ReentrantLock();
+
   private int[] deleteDocIDs = new int[0];
+
   private int numDeletedDocIds = 0;
 
   DocumentsWriterPerThread(
@@ -145,16 +167,26 @@ final class DocumentsWriterPerThread implements Accountable {
       AtomicLong pendingNumDocs,
       boolean enableTestPoints) {
     this.directory = new TrackingDirectoryWrapper(directory);
+
     this.fieldInfos = fieldInfos;
+
     this.indexWriterConfig = indexWriterConfig;
+
     this.infoStream = indexWriterConfig.getInfoStream();
+
     this.codec = indexWriterConfig.getCodec();
+
     this.pendingNumDocs = pendingNumDocs;
+
     pendingUpdates = new BufferedUpdates(segmentName);
+
     this.deleteQueue = Objects.requireNonNull(deleteQueue);
+
     assert numDocsInRAM == 0 : "num docs " + numDocsInRAM;
+
     deleteSlice = deleteQueue.newSlice();
 
+    //段文件
     segmentInfo =
         new SegmentInfo(
             directoryOrig,
@@ -168,7 +200,9 @@ final class DocumentsWriterPerThread implements Accountable {
             StringHelper.randomId(),
             Collections.emptyMap(),
             indexWriterConfig.getIndexSort());
+
     assert numDocsInRAM == 0;
+
     if (INFO_VERBOSE && infoStream.isEnabled("DWPT")) {
       infoStream.message(
           "DWPT",
@@ -178,7 +212,10 @@ final class DocumentsWriterPerThread implements Accountable {
               + " delQueue="
               + deleteQueue);
     }
+
     this.enableTestPoints = enableTestPoints;
+
+    //索引处理器连
     indexingChain =
         new IndexingChain(
             indexVersionCreated,
@@ -213,7 +250,9 @@ final class DocumentsWriterPerThread implements Accountable {
       throws IOException {
     try {
       testPoint("DocumentsWriterPerThread addDocuments start");
+
       assert abortingException == null : "DWPT has hit aborting exception but is still indexing";
+
       if (INFO_VERBOSE && infoStream.isEnabled("DWPT")) {
         infoStream.message(
             "DWPT",
@@ -225,8 +264,11 @@ final class DocumentsWriterPerThread implements Accountable {
                 + " seg="
                 + segmentInfo.name);
       }
+
       final int docsInRamBefore = numDocsInRAM;
+
       boolean allDocsIndexed = false;
+
       try {
         for (Iterable<? extends IndexableField> doc : docs) {
           // Even on exception, the document is still added (but marked
@@ -236,9 +278,13 @@ final class DocumentsWriterPerThread implements Accountable {
           // it's very hard to fix (we can't easily distinguish aborting
           // vs non-aborting exceptions):
           reserveOneDoc();
+
+          //处理文档
           indexingChain.processDocument(numDocsInRAM++, doc);
         }
+
         allDocsIndexed = true;
+
         return finishDocuments(deleteNode, docsInRamBefore);
       } finally {
         if (!allDocsIndexed && !aborted) {
@@ -267,13 +313,18 @@ final class DocumentsWriterPerThread implements Accountable {
     long seqNo;
     if (deleteNode != null) {
       seqNo = deleteQueue.add(deleteNode, deleteSlice);
+
       assert deleteSlice.isTail(deleteNode) : "expected the delete term as the tail item";
+
       deleteSlice.apply(pendingUpdates, docIdUpTo);
+
       return seqNo;
     } else {
       seqNo = deleteQueue.updateSlice(deleteSlice);
+
       if (seqNo < 0) {
         seqNo = -seqNo;
+
         deleteSlice.apply(pendingUpdates, docIdUpTo);
       } else {
         deleteSlice.reset();
@@ -320,13 +371,18 @@ final class DocumentsWriterPerThread implements Accountable {
    */
   FrozenBufferedUpdates prepareFlush() {
     assert numDocsInRAM > 0;
+
     final FrozenBufferedUpdates globalUpdates = deleteQueue.freezeGlobalBuffer(deleteSlice);
+
     /* deleteSlice can possibly be null if we have hit non-aborting exceptions during indexing and never succeeded
     adding a document. */
     if (deleteSlice != null) {
+
       // apply all deletes before we flush and release the delete slice
       deleteSlice.apply(pendingUpdates, numDocsInRAM);
+
       assert deleteSlice.isEmpty();
+
       deleteSlice.reset();
     }
     return globalUpdates;
@@ -334,10 +390,14 @@ final class DocumentsWriterPerThread implements Accountable {
 
   /** Flush all pending docs to a new segment */
   FlushedSegment flush(DocumentsWriter.FlushNotifications flushNotifications) throws IOException {
-    assert flushPending.get() == Boolean.TRUE;
+    assert flushPending.get().equals(Boolean.TRUE);
+
     assert numDocsInRAM > 0;
+
     assert deleteSlice.isEmpty() : "all deletes must be applied in prepareFlush";
+
     segmentInfo.setMaxDoc(numDocsInRAM);
+
     final SegmentWriteState flushState =
         new SegmentWriteState(
             infoStream,
@@ -346,6 +406,7 @@ final class DocumentsWriterPerThread implements Accountable {
             fieldInfos.finish(),
             pendingUpdates,
             new IOContext(new FlushInfo(numDocsInRAM, lastCommittedBytesUsed)));
+
     final double startMBUsed = lastCommittedBytesUsed / 1024. / 1024.;
 
     // Apply delete-by-docID now (delete-byDocID only
@@ -353,11 +414,15 @@ final class DocumentsWriterPerThread implements Accountable {
     // doc, eg if analyzer has some problem w/ the text):
     if (numDeletedDocIds > 0) {
       flushState.liveDocs = new FixedBitSet(numDocsInRAM);
+
       flushState.liveDocs.set(0, numDocsInRAM);
+
       for (int i = 0; i < numDeletedDocIds; i++) {
         flushState.liveDocs.clear(deleteDocIDs[i]);
       }
+
       flushState.delCountOnFlush = numDeletedDocIds;
+
       deleteDocIDs = new int[0];
     }
 
@@ -375,15 +440,21 @@ final class DocumentsWriterPerThread implements Accountable {
           "DWPT",
           "flush postings as segment " + flushState.segmentInfo.name + " numDocs=" + numDocsInRAM);
     }
+
     final Sorter.DocMap sortMap;
+
     try {
       DocIdSetIterator softDeletedDocs;
+
       if (indexWriterConfig.getSoftDeletesField() != null) {
         softDeletedDocs = indexingChain.getHasDocValues(indexWriterConfig.getSoftDeletesField());
       } else {
         softDeletedDocs = null;
       }
+
+      //真正执行flush的地方
       sortMap = indexingChain.flush(flushState);
+
       if (softDeletedDocs == null) {
         flushState.softDelCountOnFlush = 0;
       } else {
@@ -395,6 +466,7 @@ final class DocumentsWriterPerThread implements Accountable {
       // We clear this here because we already resolved them (private to this segment) when writing
       // postings:
       pendingUpdates.clearDeleteTerms();
+
       segmentInfo.setFiles(new HashSet<>(directory.getCreatedFiles()));
 
       final SegmentCommitInfo segmentInfoPerCommit =
@@ -406,6 +478,7 @@ final class DocumentsWriterPerThread implements Accountable {
               -1L,
               -1L,
               StringHelper.randomId());
+
       if (infoStream.isEnabled("DWPT")) {
         infoStream.message(
             "DWPT",
@@ -431,6 +504,7 @@ final class DocumentsWriterPerThread implements Accountable {
       }
 
       final BufferedUpdates segmentDeletes;
+
       if (pendingUpdates.deleteQueries.isEmpty() && pendingUpdates.numFieldUpdates.get() == 0) {
         pendingUpdates.clear();
         segmentDeletes = null;
@@ -465,11 +539,14 @@ final class DocumentsWriterPerThread implements Accountable {
               flushState.liveDocs,
               flushState.delCountOnFlush,
               sortMap);
+
       sealFlushedSegment(fs, sortMap, flushNotifications);
+
       if (infoStream.isEnabled("DWPT")) {
         infoStream.message(
             "DWPT", "flush time " + ((System.nanoTime() - t0) / 1000000.0) + " msec");
       }
+
       return fs;
     } catch (Throwable t) {
       onAbortingException(t);
@@ -501,13 +578,17 @@ final class DocumentsWriterPerThread implements Accountable {
 
   private FixedBitSet sortLiveDocs(Bits liveDocs, Sorter.DocMap sortMap) {
     assert liveDocs != null && sortMap != null;
+
     FixedBitSet sortedLiveDocs = new FixedBitSet(liveDocs.length());
+
     sortedLiveDocs.set(0, liveDocs.length());
+
     for (int i = 0; i < liveDocs.length(); i++) {
       if (liveDocs.get(i) == false) {
         sortedLiveDocs.clear(sortMap.oldToNew(i));
       }
     }
+
     return sortedLiveDocs;
   }
 
@@ -521,6 +602,7 @@ final class DocumentsWriterPerThread implements Accountable {
       DocumentsWriter.FlushNotifications flushNotifications)
       throws IOException {
     assert flushedSegment != null;
+
     SegmentCommitInfo newSegment = flushedSegment.segmentInfo;
 
     IndexWriter.setDiagnostics(newSegment.info, IndexWriter.SOURCE_FLUSH);
@@ -533,6 +615,7 @@ final class DocumentsWriterPerThread implements Accountable {
 
       if (indexWriterConfig.getUseCompoundFile()) {
         Set<String> originalFiles = newSegment.info.files();
+
         // TODO: like addIndexes, we are relying on createCompoundFile to successfully cleanup...
         IndexWriter.createCompoundFile(
             infoStream,
@@ -540,7 +623,9 @@ final class DocumentsWriterPerThread implements Accountable {
             newSegment.info,
             context,
             flushNotifications::deleteUnusedFiles);
+
         filesToDelete.addAll(originalFiles);
+
         newSegment.info.setUseCompoundFile(true);
       }
 
@@ -558,7 +643,9 @@ final class DocumentsWriterPerThread implements Accountable {
       // slurp the del file into CFS:
       if (flushedSegment.liveDocs != null) {
         final int delCount = flushedSegment.delCount;
+
         assert delCount > 0;
+
         if (infoStream.isEnabled("DWPT")) {
           infoStream.message(
               "DWPT",
@@ -578,15 +665,21 @@ final class DocumentsWriterPerThread implements Accountable {
         // filesystem as intermediary here.
 
         SegmentCommitInfo info = flushedSegment.segmentInfo;
+
         Codec codec = info.info.getCodec();
+
         final FixedBitSet bits;
+
         if (sortMap == null) {
           bits = flushedSegment.liveDocs;
         } else {
           bits = sortLiveDocs(flushedSegment.liveDocs, sortMap);
         }
+
         codec.liveDocsFormat().writeLiveDocs(bits, directory, info, delCount, context);
+
         newSegment.setDelCount(delCount);
+
         newSegment.advanceDelGen();
       }
 

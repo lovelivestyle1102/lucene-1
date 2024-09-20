@@ -74,16 +74,20 @@ public class CollectionStatistics {
     if (maxDoc <= 0) {
       throw new IllegalArgumentException("maxDoc must be positive, maxDoc: " + maxDoc);
     }
+
     if (docCount <= 0) {
       throw new IllegalArgumentException("docCount must be positive, docCount: " + docCount);
     }
+
     if (docCount > maxDoc) {
       throw new IllegalArgumentException(
           "docCount must not exceed maxDoc, docCount: " + docCount + ", maxDoc: " + maxDoc);
     }
+
     if (sumDocFreq <= 0) {
       throw new IllegalArgumentException("sumDocFreq must be positive, sumDocFreq: " + sumDocFreq);
     }
+
     if (sumDocFreq < docCount) {
       throw new IllegalArgumentException(
           "sumDocFreq must be at least docCount, sumDocFreq: "
@@ -91,10 +95,12 @@ public class CollectionStatistics {
               + ", docCount: "
               + docCount);
     }
+
     if (sumTotalTermFreq <= 0) {
       throw new IllegalArgumentException(
           "sumTotalTermFreq must be positive, sumTotalTermFreq: " + sumTotalTermFreq);
     }
+
     if (sumTotalTermFreq < sumDocFreq) {
       throw new IllegalArgumentException(
           "sumTotalTermFreq must be at least sumDocFreq, sumTotalTermFreq: "
@@ -102,10 +108,15 @@ public class CollectionStatistics {
               + ", sumDocFreq: "
               + sumDocFreq);
     }
+
     this.field = field;
+
     this.maxDoc = maxDoc;
+
     this.docCount = docCount;
+
     this.sumTotalTermFreq = sumTotalTermFreq;
+
     this.sumDocFreq = sumDocFreq;
   }
 

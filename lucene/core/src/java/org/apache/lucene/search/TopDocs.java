@@ -286,36 +286,50 @@ public class TopDocs {
     }
 
     long totalHitCount = 0;
+
     TotalHits.Relation totalHitsRelation = TotalHits.Relation.EQUAL_TO;
+
     int availHitCount = 0;
+
     for (int shardIDX = 0; shardIDX < shardHits.length; shardIDX++) {
       final TopDocs shard = shardHits[shardIDX];
       // totalHits can be non-zero even if no hits were
       // collected, when searchAfter was used:
       totalHitCount += shard.totalHits.value;
+
       // If any hit count is a lower bound then the merged
       // total hit count is a lower bound as well
       if (shard.totalHits.relation == TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO) {
         totalHitsRelation = TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO;
       }
+
       if (shard.scoreDocs != null && shard.scoreDocs.length > 0) {
         availHitCount += shard.scoreDocs.length;
+
         queue.add(new ShardRef(shardIDX));
       }
     }
 
     final ScoreDoc[] hits;
+
     boolean unsetShardIndex = false;
+
     if (availHitCount <= start) {
       hits = new ScoreDoc[0];
     } else {
       hits = new ScoreDoc[Math.min(size, availHitCount - start)];
+
       int requestedResultWindow = start + size;
+
       int numIterOnHits = Math.min(availHitCount, requestedResultWindow);
+
       int hitUpto = 0;
+
       while (hitUpto < numIterOnHits) {
         assert queue.size() > 0;
+
         ShardRef ref = queue.top();
+
         final ScoreDoc hit = shardHits[ref.shardIndex].scoreDocs[ref.hitIndex++];
 
         // Irrespective of whether we use shard indices for tie breaking or not, we check for

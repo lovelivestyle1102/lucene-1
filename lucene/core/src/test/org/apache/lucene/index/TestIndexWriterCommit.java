@@ -74,11 +74,17 @@ public class TestIndexWriterCommit extends LuceneTestCase {
     assertFalse("reader should not be current now", reader.isCurrent());
 
     IndexReader r = DirectoryReader.open(dir);
+
     searcher = newSearcher(r);
+
     hits = searcher.search(new TermQuery(searchTerm), 1000).scoreDocs;
+
     assertEquals("reader did not see changes after writer was closed", 47, hits.length);
+
     r.close();
+
     reader.close();
+
     dir.close();
   }
 

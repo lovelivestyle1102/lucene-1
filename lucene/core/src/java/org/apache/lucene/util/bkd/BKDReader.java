@@ -37,14 +37,23 @@ public final class BKDReader extends PointValues {
 
   // Packed array of byte[] holding all split values in the full binary tree:
   final int leafNodeOffset;
+
   final BKDConfig config;
+
   final int numLeaves;
+
   final IndexInput in;
+
   final byte[] minPackedValue;
+
   final byte[] maxPackedValue;
+
   final long pointCount;
+
   final int docCount;
+
   final int version;
+
   final long minLeafBlockFP;
 
   final IndexInput packedIndex;
@@ -57,26 +66,36 @@ public final class BKDReader extends PointValues {
     version =
         CodecUtil.checkHeader(
             metaIn, BKDWriter.CODEC_NAME, BKDWriter.VERSION_START, BKDWriter.VERSION_CURRENT);
+
     final int numDims = metaIn.readVInt();
+
     final int numIndexDims;
+
     if (version >= BKDWriter.VERSION_SELECTIVE_INDEXING) {
       numIndexDims = metaIn.readVInt();
     } else {
       numIndexDims = numDims;
     }
+
     final int maxPointsInLeafNode = metaIn.readVInt();
+
     final int bytesPerDim = metaIn.readVInt();
+
     config = new BKDConfig(numDims, numIndexDims, bytesPerDim, maxPointsInLeafNode);
 
     // Read index:
     numLeaves = metaIn.readVInt();
+
     assert numLeaves > 0;
+
     leafNodeOffset = numLeaves;
 
     minPackedValue = new byte[config.packedIndexBytesLength];
+
     maxPackedValue = new byte[config.packedIndexBytesLength];
 
     metaIn.readBytes(minPackedValue, 0, config.packedIndexBytesLength);
+
     metaIn.readBytes(maxPackedValue, 0, config.packedIndexBytesLength);
 
     for (int dim = 0; dim < config.numIndexDims; dim++) {
@@ -100,19 +119,27 @@ public final class BKDReader extends PointValues {
     }
 
     pointCount = metaIn.readVLong();
+
     docCount = metaIn.readVInt();
 
     int numIndexBytes = metaIn.readVInt();
+
     long indexStartPointer;
+
     if (version >= BKDWriter.VERSION_META_FILE) {
       minLeafBlockFP = metaIn.readLong();
+
       indexStartPointer = metaIn.readLong();
     } else {
       indexStartPointer = indexIn.getFilePointer();
+
       minLeafBlockFP = indexIn.readVLong();
+
       indexIn.seek(indexStartPointer);
     }
+
     this.packedIndex = indexIn.slice("packedIndex", indexStartPointer, numIndexBytes);
+
     this.in = dataIn;
   }
 
@@ -129,27 +156,37 @@ public final class BKDReader extends PointValues {
    */
   public class IndexTree implements Cloneable {
     private int nodeID;
+
     // level is 1-based so that we can do level-1 w/o checking each time:
     private int level;
+
     private int splitDim;
+
     private final byte[][] splitPackedValueStack;
+
     // used to read the packed tree off-heap
     private final IndexInput in;
+
     // holds the minimum (left most) leaf block file pointer for each level we've recursed to:
     private final long[] leafBlockFPStack;
+
     // holds the address, in the off-heap index, of the right-node of each level:
     private final int[] rightNodePositions;
+
     // holds the splitDim for each level:
     private final int[] splitDims;
+
     // true if the per-dim delta we read for the node at this level is a negative offset vs. the
     // last split on this dim; this is a packed
     // 2D array, i.e. to access array[level][dim] you read from negativeDeltas[level*numDims+dim].
     // this will be true if the last time we
     // split on this dimension, we next pushed to the left sub-tree:
     private final boolean[] negativeDeltas;
+
     // holds the packed per-level split values; the intersect method uses this to save the cell
     // min/max as it recurses:
     private final byte[][] splitValuesStack;
+
     // scratch value to return from getPackedValue:
     private final BytesRef scratch;
 

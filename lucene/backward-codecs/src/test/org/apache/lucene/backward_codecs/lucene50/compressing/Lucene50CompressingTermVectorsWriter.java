@@ -78,7 +78,9 @@ public final class Lucene50CompressingTermVectorsWriter extends TermVectorsWrite
   /** a pending doc */
   private class DocData {
     final int numFields;
+
     final Deque<FieldData> fields;
+
     final int posStart, offStart, payStart;
 
     DocData(int numFields, int posStart, int offStart, int payStart) {
@@ -375,7 +377,9 @@ public final class Lucene50CompressingTermVectorsWriter extends TermVectorsWrite
     indexWriter.writeIndex(chunkDocs, vectorsStream.getFilePointer());
 
     final int docBase = numDocs - chunkDocs;
+
     vectorsStream.writeVInt(docBase);
+
     vectorsStream.writeVInt(chunkDocs);
 
     // total number of fields of the chunk
@@ -384,20 +388,28 @@ public final class Lucene50CompressingTermVectorsWriter extends TermVectorsWrite
     if (totalFields > 0) {
       // unique field numbers (sorted)
       final int[] fieldNums = flushFieldNums();
+
       // offsets in the array of unique field numbers
       flushFields(totalFields, fieldNums);
+
       // flags (does the field have positions, offsets, payloads?)
       flushFlags(totalFields, fieldNums);
+
       // number of terms of each field
       flushNumTerms(totalFields);
+
       // prefix and suffix lengths for each field
       flushTermLengths();
+
       // term freqs - 1 (because termFreq is always >=1) for each term
       flushTermFreqs();
+
       // positions for all terms, when enabled
       flushPositions();
+
       // offsets for all terms, when enabled
       flushOffsets(fieldNums);
+
       // payload lengths for all terms, when enabled
       flushPayloadLengths();
 

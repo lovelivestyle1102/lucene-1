@@ -34,7 +34,9 @@ import org.apache.lucene.util.bkd.BKDReader;
 /** Reads point values previously written with {@link Lucene90PointsWriter} */
 public class Lucene90PointsReader extends PointsReader {
   final IndexInput indexIn, dataIn;
+
   final SegmentReadState readState;
+
   final Map<Integer, BKDReader> readers = new HashMap<>();
 
   /** Sole constructor */
@@ -108,10 +110,13 @@ public class Lucene90PointsReader extends PointsReader {
           CodecUtil.checkFooter(metaIn, priorE);
         }
       }
+
       // At this point, checksums of the meta file have been validated so we
       // know that indexLength and dataLength are very likely correct.
       CodecUtil.retrieveChecksum(indexIn, indexLength);
+
       CodecUtil.retrieveChecksum(dataIn, dataLength);
+
       success = true;
     } finally {
       if (success == false) {

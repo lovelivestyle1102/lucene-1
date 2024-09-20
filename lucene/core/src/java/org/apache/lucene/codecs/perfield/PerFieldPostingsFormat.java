@@ -154,6 +154,7 @@ public abstract class PerFieldPostingsFormat extends PostingsFormat {
       try {
         for (Map.Entry<PostingsFormat, FieldsGroup> ent : formatToGroups.entrySet()) {
           PostingsFormat format = ent.getKey();
+
           final FieldsGroup group = ent.getValue();
 
           // Exposes only the fields from this group:
@@ -165,8 +166,11 @@ public abstract class PerFieldPostingsFormat extends PostingsFormat {
                 }
               };
 
+          //Lucene90BlockTreeTermsWriter
           FieldsConsumer consumer = format.fieldsConsumer(group.state);
+
           toClose.add(consumer);
+
           consumer.write(maskedFields, norms);
         }
         success = true;
@@ -221,6 +225,8 @@ public abstract class PerFieldPostingsFormat extends PostingsFormat {
       // Assign field -> PostingsFormat
       for (String field : indexedFieldNames) {
         FieldInfo fieldInfo = writeState.fieldInfos.fieldInfo(field);
+
+        //Lucene90PostingsFormat
         // TODO: This should check current format from the field attribute?
         final PostingsFormat format = getPostingsFormatForField(field);
 
@@ -228,6 +234,7 @@ public abstract class PerFieldPostingsFormat extends PostingsFormat {
           throw new IllegalStateException(
               "invalid null PostingsFormat for field=\"" + field + "\"");
         }
+
         String formatName = format.getName();
 
         FieldsGroup.Builder groupBuilder = formatToGroupBuilders.get(format);
@@ -348,6 +355,8 @@ public abstract class PerFieldPostingsFormat extends PostingsFormat {
     @Override
     public Terms terms(String field) throws IOException {
       FieldsProducer fieldsProducer = fields.get(field);
+
+      //FieldReader
       return fieldsProducer == null ? null : fieldsProducer.terms(field);
     }
 

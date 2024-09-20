@@ -76,6 +76,7 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
             state.segmentInfo.name, state.segmentSuffix, Lucene90PostingsFormat.DOC_EXTENSION);
     try {
       docIn = state.directory.openInput(docName, state.context);
+
       version =
           CodecUtil.checkIndexHeader(
               docIn,
@@ -129,7 +130,9 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
         VERSION_CURRENT,
         state.segmentInfo.getId(),
         state.segmentSuffix);
+
     final int indexBlockSize = termsIn.readVInt();
+
     if (indexBlockSize != BLOCK_SIZE) {
       throw new IllegalStateException(
           "index-time BLOCK_SIZE ("
@@ -192,11 +195,14 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
       DataInput in, FieldInfo fieldInfo, BlockTermState _termState, boolean absolute)
       throws IOException {
     final IntBlockTermState termState = (IntBlockTermState) _termState;
+
     final boolean fieldHasPositions =
         fieldInfo.getIndexOptions().compareTo(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS) >= 0;
+
     final boolean fieldHasOffsets =
         fieldInfo.getIndexOptions().compareTo(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS)
             >= 0;
+
     final boolean fieldHasPayloads = fieldInfo.hasPayloads();
 
     if (absolute) {
@@ -206,6 +212,7 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
     }
 
     final long l = in.readVLong();
+
     if ((l & 0x01) == 0) {
       termState.docStartFP += l >>> 1;
       if (termState.docFreq == 1) {
@@ -282,9 +289,11 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
 
     final boolean indexHasPositions =
         fieldInfo.getIndexOptions().compareTo(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS) >= 0;
+
     final boolean indexHasOffsets =
         fieldInfo.getIndexOptions().compareTo(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS)
             >= 0;
+
     final boolean indexHasPayloads = fieldInfo.hasPayloads();
 
     if (indexHasPositions == false
@@ -1313,6 +1322,7 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
       docIn.seek(docTermStartFP);
       posPendingFP = posTermStartFP;
       posPendingCount = 0;
+      
       if (termState.totalTermFreq < BLOCK_SIZE) {
         lastPosBlockFP = posTermStartFP;
       } else if (termState.totalTermFreq == BLOCK_SIZE) {
@@ -1329,6 +1339,7 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
       skipper =
           new Lucene90ScoreSkipReader(
               docIn.clone(), MAX_SKIP_LEVELS, true, indexHasOffsets, indexHasPayloads);
+
       skipper.init(
           docTermStartFP + termState.skipOffset,
           docTermStartFP,
@@ -1349,17 +1360,23 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
 
     private void refillDocs() throws IOException {
       final int left = docFreq - docUpto;
+
       assert left >= 0;
 
       if (left >= BLOCK_SIZE) {
         pforUtil.decodeAndPrefixSum(docIn, accum, docBuffer);
+
         pforUtil.decode(docIn, freqBuffer);
       } else {
         readVIntBlock(docIn, docBuffer, freqBuffer, left, true);
+
         prefixSum(docBuffer, left, accum);
+
         docBuffer[left] = NO_MORE_DOCS;
       }
+
       accum = docBuffer[BLOCK_SIZE - 1];
+
       docBufferUpto = 0;
     }
 
@@ -1434,6 +1451,7 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
       if (target > nextSkipDoc) {
         advanceShallow(target);
       }
+
       if (docBufferUpto == BLOCK_SIZE) {
         if (seekTo >= 0) {
           docIn.seek(seekTo);
@@ -1443,14 +1461,18 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
       }
 
       int next = findFirstGreater(docBuffer, target, docBufferUpto);
+
       if (next == BLOCK_SIZE) {
         return doc = NO_MORE_DOCS;
       }
+
       this.doc = (int) docBuffer[next];
       this.freq = (int) freqBuffer[next];
+
       for (int i = docBufferUpto; i <= next; ++i) {
         posPendingCount += freqBuffer[i];
       }
+
       docUpto += next - docBufferUpto + 1;
       docBufferUpto = next + 1;
       position = 0;
@@ -1627,6 +1649,7 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
       needsOffsets = PostingsEnum.featureRequested(flags, PostingsEnum.OFFSETS);
       needsPayloads = PostingsEnum.featureRequested(flags, PostingsEnum.PAYLOADS);
 
+      //doc 文件读取流
       this.docIn = Lucene90PostingsReader.this.docIn.clone();
 
       if (indexHasPos && needsPositions) {
@@ -1666,10 +1689,13 @@ public final class Lucene90PostingsReader extends PostingsReaderBase {
       posTermStartFP = termState.posStartFP;
       payTermStartFP = termState.payStartFP;
       totalTermFreq = termState.totalTermFreq;
+
+      //设置读取位置
       docIn.seek(docTermStartFP);
       posPendingFP = posTermStartFP;
       payPendingFP = payTermStartFP;
       posPendingCount = 0;
+
       if (termState.totalTermFreq < BLOCK_SIZE) {
         lastPosBlockFP = posTermStartFP;
       } else if (termState.totalTermFreq == BLOCK_SIZE) {

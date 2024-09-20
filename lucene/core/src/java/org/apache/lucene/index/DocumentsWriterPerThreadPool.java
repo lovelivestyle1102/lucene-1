@@ -44,10 +44,14 @@ final class DocumentsWriterPerThreadPool implements Iterable<DocumentsWriterPerT
 
   private final Set<DocumentsWriterPerThread> dwpts =
       Collections.newSetFromMap(new IdentityHashMap<>());
+
   private final ApproximatePriorityQueue<DocumentsWriterPerThread> freeList =
       new ApproximatePriorityQueue<>();
+
   private final Supplier<DocumentsWriterPerThread> dwptFactory;
+
   private int takenWriterPermits = 0;
+
   private boolean closed;
 
   DocumentsWriterPerThreadPool(Supplier<DocumentsWriterPerThread> dwptFactory) {
@@ -66,6 +70,7 @@ final class DocumentsWriterPerThreadPool implements Iterable<DocumentsWriterPerT
     // deadlock at some
     // point
     assert takenWriterPermits >= 0;
+
     takenWriterPermits++;
   }
 
@@ -99,9 +104,13 @@ final class DocumentsWriterPerThreadPool implements Iterable<DocumentsWriterPerT
     // end of the world it's violating the contract that we don't release any new DWPT after this
     // pool is closed
     ensureOpen();
+
     DocumentsWriterPerThread dwpt = dwptFactory.get();
+
     dwpt.lock(); // lock so nobody else will get this DWPT
+
     dwpts.add(dwpt);
+
     return dwpt;
   }
 
@@ -115,10 +124,13 @@ final class DocumentsWriterPerThreadPool implements Iterable<DocumentsWriterPerT
   DocumentsWriterPerThread getAndLock() {
     synchronized (this) {
       ensureOpen();
+
       DocumentsWriterPerThread dwpt = freeList.poll(DocumentsWriterPerThread::tryLock);
+
       if (dwpt == null) {
         dwpt = newWriter();
       }
+
       // DWPT is already locked before return by this method:
       return dwpt;
     }
@@ -132,11 +144,13 @@ final class DocumentsWriterPerThreadPool implements Iterable<DocumentsWriterPerT
 
   void marksAsFreeAndUnlock(DocumentsWriterPerThread state) {
     final long ramBytesUsed = state.ramBytesUsed();
+
     synchronized (this) {
       assert dwpts.contains(state)
           : "we tried to add a DWPT back to the pool but the pool doesn't know aobut this DWPT";
       freeList.add(state, ramBytesUsed);
     }
+
     state.unlock();
   }
 

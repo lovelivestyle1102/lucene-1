@@ -182,20 +182,30 @@ public abstract class Analyzer implements Closeable {
    */
   public final TokenStream tokenStream(final String fieldName, final String text) {
     TokenStreamComponents components = reuseStrategy.getReusableComponents(this, fieldName);
+
     @SuppressWarnings("resource")
     final ReusableStringReader strReader =
         (components == null || components.reusableStringReader == null)
             ? new ReusableStringReader()
             : components.reusableStringReader;
+
+    //将value文本内容设置到到reader上
     strReader.setValue(text);
+
     final Reader r = initReader(fieldName, strReader);
+
+    //第一次为空
     if (components == null) {
+      //这里调用分词器，TokenStreamComponents其实时嵌套的
       components = createComponents(fieldName);
+
       reuseStrategy.setReusableComponents(this, fieldName, components);
     }
 
     components.setReader(r);
+
     components.reusableStringReader = strReader;
+
     return components.getTokenStream();
   }
 

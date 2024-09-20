@@ -31,6 +31,8 @@ import org.apache.lucene.util.LuceneTestCase;
 /** JUnit adaptation of an older test case SearchTest. */
 public class TestSearch extends LuceneTestCase {
 
+
+
   /**
    * This test performs a number of searches. It also compares output of searches using multi-file
    * index segments with single-file index segments.
@@ -61,10 +63,15 @@ public class TestSearch extends LuceneTestCase {
   private void doTestSearch(Random random, PrintWriter out, boolean useCompoundFile)
       throws Exception {
     Directory directory = newDirectory();
+
     Analyzer analyzer = new MockAnalyzer(random);
+
     IndexWriterConfig conf = newIndexWriterConfig(analyzer);
+
     MergePolicy mp = conf.getMergePolicy();
+
     mp.setNoCFSRatio(useCompoundFile ? 1.0 : 0.0);
+    
     IndexWriter writer = new IndexWriter(directory, conf);
 
     String[] docs = {

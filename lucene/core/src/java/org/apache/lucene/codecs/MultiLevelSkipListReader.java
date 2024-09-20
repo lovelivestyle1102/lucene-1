@@ -86,18 +86,28 @@ public abstract class MultiLevelSkipListReader implements Closeable {
   protected MultiLevelSkipListReader(
       IndexInput skipStream, int maxSkipLevels, int skipInterval, int skipMultiplier) {
     this.skipStream = new IndexInput[maxSkipLevels];
+
     this.skipPointer = new long[maxSkipLevels];
+
     this.childPointer = new long[maxSkipLevels];
+
     this.numSkipped = new int[maxSkipLevels];
+
     this.maxNumberOfSkipLevels = maxSkipLevels;
+
     this.skipInterval = new int[maxSkipLevels];
+
     this.skipMultiplier = skipMultiplier;
+
     this.skipStream[0] = skipStream;
+
     this.skipInterval[0] = skipInterval;
+
     for (int i = 1; i < maxSkipLevels; i++) {
       // cache skip intervals
       this.skipInterval[i] = this.skipInterval[i - 1] * skipMultiplier;
     }
+
     skipDoc = new int[maxSkipLevels];
   }
 
@@ -283,7 +293,9 @@ public abstract class MultiLevelSkipListReader implements Closeable {
   /** used to buffer the top skip levels */
   private static final class SkipBuffer extends IndexInput {
     private byte[] data;
+
     private long pointer;
+
     private int pos;
 
     SkipBuffer(IndexInput input, int length) throws IOException {

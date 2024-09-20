@@ -33,6 +33,7 @@ import org.apache.lucene.util.IOUtils;
 public class BlockTreeOrdsPostingsFormat extends PostingsFormat {
 
   private final int minTermBlockSize;
+
   private final int maxTermBlockSize;
 
   /** Fixed packed block size, number of integers encoded in a single packed block. */

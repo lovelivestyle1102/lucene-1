@@ -64,19 +64,29 @@ class BufferedUpdates implements Accountable {
           + 2 * RamUsageEstimator.NUM_BYTES_OBJECT_HEADER
           + 2 * Integer.BYTES
           + 24;
+
+  // 根据term匹配条件删除的个数
   final AtomicInteger numTermDeletes = new AtomicInteger();
+
+  // docValue更新的个数
   final AtomicInteger numFieldUpdates = new AtomicInteger();
 
+  //该Map的key为Term，表示包含该Term的文档都会被删除，value为一个哨兵值，描述了该删除操作的作用范围，即只能作用于文档号小于哨兵值的文档
   final Map<Term, Integer> deleteTerms =
       new HashMap<>(); // TODO cut this over to FieldUpdatesBuffer
+
+  //该Map的key为Query，表示满足该查询要求的文档都会被删除，value的概念同deleteTerms
   final Map<Query, Integer> deleteQueries = new HashMap<>();
 
+  // key是字段名称，value是对应字段的docValue的更新信息
   final Map<String, FieldUpdatesBuffer> fieldUpdates = new HashMap<>();
 
   public static final Integer MAX_INT = Integer.valueOf(Integer.MAX_VALUE);
 
   private final Counter bytesUsed = Counter.newCounter(true);
+
   final Counter fieldUpdatesBytesUsed = Counter.newCounter(true);
+
   private final Counter termsBytesUsed = Counter.newCounter(true);
 
   private static final boolean VERBOSE_DELETES = false;
@@ -118,16 +128,20 @@ class BufferedUpdates implements Accountable {
     }
   }
 
+  // 根据query删除
   public void addQuery(Query query, int docIDUpto) {
     Integer current = deleteQueries.put(query, docIDUpto);
     // increment bytes used only if the query wasn't added so far.
+    // 如果是新增的，则需要更新占用的内存大小
     if (current == null) {
       bytesUsed.addAndGet(BYTES_PER_DEL_QUERY);
     }
   }
 
+  // 根据term删除
   public void addTerm(Term term, int docIDUpto) {
     Integer current = deleteTerms.get(term);
+    // 如果已经有了按term删除的，并且有效的docID上限更大，则忽略当前的删除动作
     if (current != null && docIDUpto < current) {
       // Only record the new number if it's greater than the
       // current one.  This is important because if multiple
@@ -140,17 +154,22 @@ class BufferedUpdates implements Accountable {
     }
 
     deleteTerms.put(term, Integer.valueOf(docIDUpto));
+
     // note that if current != null then it means there's already a buffered
     // delete on that term, therefore we seem to over-count. this over-counting
     // is done to respect IndexWriterConfig.setMaxBufferedDeleteTerms.
     numTermDeletes.incrementAndGet();
+
+    // 新增的需要更新内存占用信息
     if (current == null) {
       termsBytesUsed.addAndGet(
           BYTES_PER_DEL_TERM + term.bytes.length + (Character.BYTES * term.field().length()));
     }
   }
 
+  // NumericDocValues的更新
   void addNumericUpdate(NumericDocValuesUpdate update, int docIDUpto) {
+    // 获取字段的  FieldUpdatesBuffer ，如果是这个字段第一次更新docValues，则创建一个
     FieldUpdatesBuffer buffer =
         fieldUpdates.computeIfAbsent(
             update.field, k -> new FieldUpdatesBuffer(fieldUpdatesBytesUsed, update, docIDUpto));

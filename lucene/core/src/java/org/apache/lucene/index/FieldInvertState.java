@@ -44,18 +44,28 @@ public final class FieldInvertState {
   // we must track these across field instances (multi-valued case)
   int lastStartOffset = 0;
   int lastPosition = 0;
+
   AttributeSource attributeSource;
 
   OffsetAttribute offsetAttribute;
+
+  //term 位置数据
   PositionIncrementAttribute posIncrAttribute;
+
   PayloadAttribute payloadAttribute;
+
+  //term 字节数据
   TermToBytesRefAttribute termAttribute;
+
+  //term 频次数据
   TermFrequencyAttribute termFreqAttribute;
 
   /** Creates {code FieldInvertState} for the specified field name. */
   public FieldInvertState(int indexCreatedVersionMajor, String name, IndexOptions indexOptions) {
     this.indexCreatedVersionMajor = indexCreatedVersionMajor;
+
     this.name = name;
+
     this.indexOptions = indexOptions;
   }
 
@@ -96,10 +106,15 @@ public final class FieldInvertState {
   void setAttributeSource(AttributeSource attributeSource) {
     if (this.attributeSource != attributeSource) {
       this.attributeSource = attributeSource;
+
       termAttribute = attributeSource.getAttribute(TermToBytesRefAttribute.class);
+
       termFreqAttribute = attributeSource.addAttribute(TermFrequencyAttribute.class);
+
       posIncrAttribute = attributeSource.addAttribute(PositionIncrementAttribute.class);
+
       offsetAttribute = attributeSource.addAttribute(OffsetAttribute.class);
+
       payloadAttribute = attributeSource.getAttribute(PayloadAttribute.class);
     }
   }

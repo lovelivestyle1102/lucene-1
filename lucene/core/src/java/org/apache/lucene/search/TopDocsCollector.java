@@ -39,6 +39,8 @@ public abstract class TopDocsCollector<T extends ScoreDoc> implements Collector 
       new TopDocs(new TotalHits(0, TotalHits.Relation.EQUAL_TO), new ScoreDoc[0]);
 
   /**
+   * 结果收集容器
+   *
    * The priority queue which holds the top documents. Note that different implementations of
    * PriorityQueue give different meaning to 'top documents'. HitQueue for example aggregates the
    * top scoring documents, while other PQ implementations may hold documents sorted by other
@@ -151,6 +153,7 @@ public abstract class TopDocsCollector<T extends ScoreDoc> implements Collector 
 
     // We know that start < pqsize, so just fix howMany.
     howMany = Math.min(size - start, howMany);
+
     ScoreDoc[] results = new ScoreDoc[howMany];
 
     // pq's pop() returns the 'least' element in the queue, therefore need

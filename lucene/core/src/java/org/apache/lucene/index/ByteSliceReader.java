@@ -28,36 +28,63 @@ import org.apache.lucene.util.ByteBlockPool;
  * point we read the forwarding address of the next slice
  * and then jump to it.*/
 final class ByteSliceReader extends DataInput {
+  // slice所在的ByteBlockPool
   ByteBlockPool pool;
+
+  // 使用pool中的哪个buffer
   int bufferUpto;
+
+  // 当前使用的buffer
   byte[] buffer;
+
   public int upto;
+
+  // 当前slice的结束位置，如果还有下一个slice的话，limit后面四个字节就是下个slice的起始位置
   int limit;
+
+  // 当前读到的slice是哪个level
   int level;
+
+  // buffer在pool中的起始位置的offset
   public int bufferOffset;
 
+  // 这个数据源的slice链链表的最后一个slice的结束位置
   public int endIndex;
 
+  // startIndex是在pool中第一个slice的起始位置
   public void init(ByteBlockPool pool, int startIndex, int endIndex) {
 
     assert endIndex - startIndex >= 0;
+
     assert startIndex >= 0;
+
     assert endIndex >= 0;
 
     this.pool = pool;
+
     this.endIndex = endIndex;
 
+    // 初始level是0
     level = 0;
+
+    // 根据startIndex计算当前使用的pool中的哪个buffer
     bufferUpto = startIndex / ByteBlockPool.BYTE_BLOCK_SIZE;
     bufferOffset = bufferUpto * ByteBlockPool.BYTE_BLOCK_SIZE;
+
+    //final ByteBlockPool bytePool;
     buffer = pool.buffers[bufferUpto];
+
+    // 在buffer中的offset
     upto = startIndex & ByteBlockPool.BYTE_BLOCK_MASK;
 
+    // 第一个slice的大小
     final int firstSize = ByteBlockPool.LEVEL_SIZE_ARRAY[0];
 
-    if (startIndex + firstSize >= endIndex) {
+    if (startIndex + firstSize >= endIndex) {// 说明只有一个slice
       // There is only this one slice to read
       limit = endIndex & ByteBlockPool.BYTE_BLOCK_MASK;
+      // 最后四个字节是下一个slice的起始位置，不属于正文内容。
+      // 经过这一步，limit开始的四个字节就是下一个slice的位置
     } else limit = upto + firstSize - 4;
   }
 
@@ -95,9 +122,13 @@ final class ByteSliceReader extends DataInput {
   public void nextSlice() {
 
     // Skip to our next slice
+    // limit开始的四个字节就是下一个slice的位置
     final int nextIndex = (int) BitUtil.VH_LE_INT.get(buffer, limit);
 
+    // 下一个slice的level
     level = ByteBlockPool.NEXT_LEVEL_ARRAY[level];
+
+    // 下一个slice的大小
     final int newSize = ByteBlockPool.LEVEL_SIZE_ARRAY[level];
 
     bufferUpto = nextIndex / ByteBlockPool.BYTE_BLOCK_SIZE;
@@ -109,10 +140,13 @@ final class ByteSliceReader extends DataInput {
     if (nextIndex + newSize >= endIndex) {
       // We are advancing to the final slice
       assert endIndex - nextIndex > 0;
+      // 如果是最后一个slice
       limit = endIndex - bufferOffset;
     } else {
       // This is not the final slice (subtract 4 for the
       // forwarding address at the end of this new slice)
+      // 最后四个字节是下一个slice的起始位置，不属于正文内容。
+      // 经过这一步，limit开始的四个字节就是下一个slice的位置
       limit = upto + newSize - 4;
     }
   }

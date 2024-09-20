@@ -81,13 +81,17 @@ import org.apache.lucene.util.automaton.ByteRunAutomaton;
 public class IndexSearcher {
 
   static int maxClauseCount = 1024;
+
   private static QueryCache DEFAULT_QUERY_CACHE;
+
   private static QueryCachingPolicy DEFAULT_CACHING_POLICY = new UsageTrackingQueryCachingPolicy();
 
   static {
     final int maxCachedQueries = 1000;
+
     // min of 32MB or 5% of the heap size
     final long maxRamBytesUsed = Math.min(1L << 25, Runtime.getRuntime().maxMemory() / 20);
+
     DEFAULT_QUERY_CACHE = new LRUQueryCache(maxCachedQueries, maxRamBytesUsed);
   }
   /**
@@ -109,6 +113,7 @@ public class IndexSearcher {
   // NOTE: these members might change in incompatible ways
   // in the next release
   protected final IndexReaderContext readerContext;
+
   protected final List<LeafReaderContext> leafContexts;
 
   /** used with executor - each slice holds a set of leafs executed within one thread */
@@ -121,9 +126,11 @@ public class IndexSearcher {
   private final SliceExecutor sliceExecutor;
 
   // the default Similarity
+  //Lucene打分的组成部分
   private static final Similarity defaultSimilarity = new BM25Similarity();
 
   private QueryCache queryCache = DEFAULT_QUERY_CACHE;
+
   private QueryCachingPolicy queryCachingPolicy = DEFAULT_CACHING_POLICY;
 
   /**
@@ -217,10 +224,15 @@ public class IndexSearcher {
     assert (sliceExecutor == null) == (executor == null);
 
     reader = context.reader();
+
     this.executor = executor;
+
     this.sliceExecutor = sliceExecutor;
+
     this.readerContext = context;
+
     leafContexts = context.leaves();
+
     this.leafSlices = executor == null ? null : slices(leafContexts);
   }
 
@@ -477,6 +489,7 @@ public class IndexSearcher {
    */
   public TopDocs searchAfter(ScoreDoc after, Query query, int numHits) throws IOException {
     final int limit = Math.max(1, reader.maxDoc());
+
     if (after != null && after.doc >= limit) {
       throw new IllegalArgumentException(
           "after.doc exceeds the number of documents in the reader: after.doc="
@@ -504,13 +517,17 @@ public class IndexSearcher {
                 cappedNumHits, after, hitsThresholdChecker, minScoreAcc);
           }
 
+          //对带有结果的所有独立的Collector进行聚合
           @Override
           public TopDocs reduce(Collection<TopScoreDocCollector> collectors) throws IOException {
             final TopDocs[] topDocs = new TopDocs[collectors.size()];
+
             int i = 0;
+
             for (TopScoreDocCollector collector : collectors) {
               topDocs[i++] = collector.topDocs();
             }
+
             return TopDocs.merge(0, cappedNumHits, topDocs);
           }
         };
@@ -611,6 +628,7 @@ public class IndexSearcher {
   private TopFieldDocs searchAfter(
       FieldDoc after, Query query, int numHits, Sort sort, boolean doDocScores) throws IOException {
     final int limit = Math.max(1, reader.maxDoc());
+
     if (after != null && after.doc >= limit) {
       throw new IllegalArgumentException(
           "after.doc exceeds the number of documents in the reader: after.doc="
@@ -618,7 +636,9 @@ public class IndexSearcher {
               + " limit="
               + limit);
     }
+
     final int cappedNumHits = Math.min(numHits, limit);
+
     final Sort rewrittenSort = sort.rewrite(this);
 
     final CollectorManager<TopFieldCollector, TopFieldDocs> manager =
@@ -642,18 +662,23 @@ public class IndexSearcher {
           @Override
           public TopFieldDocs reduce(Collection<TopFieldCollector> collectors) throws IOException {
             final TopFieldDocs[] topDocs = new TopFieldDocs[collectors.size()];
+
             int i = 0;
+
             for (TopFieldCollector collector : collectors) {
               topDocs[i++] = collector.topDocs();
             }
+
             return TopDocs.merge(rewrittenSort, 0, cappedNumHits, topDocs);
           }
         };
 
     TopFieldDocs topDocs = search(query, manager);
+
     if (doDocScores) {
       TopFieldCollector.populateScores(topDocs.scoreDocs, this, query);
     }
+
     return topDocs;
   }
 
@@ -667,9 +692,15 @@ public class IndexSearcher {
    */
   public <C extends Collector, T> T search(Query query, CollectorManager<C, T> collectorManager)
       throws IOException {
+    //TopScoreDocCollector
     final C firstCollector = collectorManager.newCollector();
+
+    //重写query
     query = rewrite(query);
+
+    //生成Weight
     final Weight weight = createWeight(query, firstCollector.scoreMode(), 1);
+
     return search(weight, collectorManager, firstCollector);
   }
 
@@ -677,23 +708,34 @@ public class IndexSearcher {
       Weight weight, CollectorManager<C, T> collectorManager, C firstCollector) throws IOException {
     if (executor == null || leafSlices.length <= 1) {
       search(leafContexts, weight, firstCollector);
+
       return collectorManager.reduce(Collections.singletonList(firstCollector));
     } else {
       final List<C> collectors = new ArrayList<>(leafSlices.length);
+
       collectors.add(firstCollector);
+
       final ScoreMode scoreMode = firstCollector.scoreMode();
+
+      //检查打分方式
       for (int i = 1; i < leafSlices.length; ++i) {
         final C collector = collectorManager.newCollector();
+
         collectors.add(collector);
+
         if (scoreMode != collector.scoreMode()) {
           throw new IllegalStateException(
               "CollectorManager does not always produce collectors with the same score mode");
         }
       }
+
       final List<FutureTask<C>> listTasks = new ArrayList<>();
+
       for (int i = 0; i < leafSlices.length; ++i) {
         final LeafReaderContext[] leaves = leafSlices[i].leaves;
+
         final C collector = collectors.get(i);
+
         FutureTask<C> task =
             new FutureTask<>(
                 () -> {
@@ -705,7 +747,9 @@ public class IndexSearcher {
       }
 
       sliceExecutor.invokeAll(listTasks);
+
       final List<C> collectedCollectors = new ArrayList<>();
+
       for (Future<C> future : listTasks) {
         try {
           collectedCollectors.add(future.get());
@@ -715,6 +759,7 @@ public class IndexSearcher {
           throw new RuntimeException(e);
         }
       }
+
       return collectorManager.reduce(collectedCollectors);
     }
   }
@@ -741,6 +786,7 @@ public class IndexSearcher {
     // always use single thread:
     for (LeafReaderContext ctx : leaves) { // search each subreader
       final LeafCollector leafCollector;
+
       try {
         leafCollector = collector.getLeafCollector(ctx);
       } catch (
@@ -750,9 +796,13 @@ public class IndexSearcher {
         // continue with the following leaf
         continue;
       }
+
+      //打分
       BulkScorer scorer = weight.bulkScorer(ctx);
+
       if (scorer != null) {
         try {
+          //打分
           scorer.score(leafCollector, ctx.reader().getLiveDocs());
         } catch (
             @SuppressWarnings("unused")
@@ -772,12 +822,17 @@ public class IndexSearcher {
    */
   public Query rewrite(Query original) throws IOException {
     Query query = original;
+
     for (Query rewrittenQuery = query.rewrite(reader);
         rewrittenQuery != query;
+
         rewrittenQuery = query.rewrite(reader)) {
-      query = rewrittenQuery;
+
+        query = rewrittenQuery;
     }
+
     query.visit(getNumClausesCheckVisitor());
+
     return query;
   }
 
@@ -851,12 +906,17 @@ public class IndexSearcher {
    */
   protected Explanation explain(Weight weight, int doc) throws IOException {
     int n = ReaderUtil.subIndex(doc, leafContexts);
+
     final LeafReaderContext ctx = leafContexts.get(n);
+
     int deBasedDoc = doc - ctx.docBase;
+
     final Bits liveDocs = ctx.reader().getLiveDocs();
+
     if (liveDocs != null && liveDocs.get(deBasedDoc) == false) {
       return Explanation.noMatch("Document " + doc + " is deleted");
     }
+
     return weight.explain(ctx, deBasedDoc);
   }
 
@@ -868,10 +928,13 @@ public class IndexSearcher {
    */
   public Weight createWeight(Query query, ScoreMode scoreMode, float boost) throws IOException {
     final QueryCache queryCache = this.queryCache;
+
     Weight weight = query.createWeight(this, scoreMode, boost);
+
     if (scoreMode.needsScores() == false && queryCache != null) {
       weight = queryCache.doCache(weight, queryCachingPolicy);
     }
+
     return weight;
   }
 
@@ -945,21 +1008,31 @@ public class IndexSearcher {
    */
   public CollectionStatistics collectionStatistics(String field) throws IOException {
     assert field != null;
+
     long docCount = 0;
+
     long sumTotalTermFreq = 0;
+
     long sumDocFreq = 0;
+
     for (LeafReaderContext leaf : reader.leaves()) {
       final Terms terms = leaf.reader().terms(field);
+
       if (terms == null) {
         continue;
       }
+
       docCount += terms.getDocCount();
+
       sumTotalTermFreq += terms.getSumTotalTermFreq();
+
       sumDocFreq += terms.getSumDocFreq();
     }
+
     if (docCount == 0) {
       return null;
     }
+
     return new CollectionStatistics(field, reader.maxDoc(), docCount, sumTotalTermFreq, sumDocFreq);
   }
 

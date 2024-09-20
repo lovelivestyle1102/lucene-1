@@ -48,7 +48,9 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
   public void onDelete(DocumentsWriterFlushControl control, DocumentsWriterPerThread perThread) {
     if ((flushOnRAM()
         && control.getDeleteBytesUsed() > 1024 * 1024 * indexWriterConfig.getRAMBufferSizeMB())) {
+
       control.setApplyAllDeletes();
+
       if (infoStream.isEnabled("FP")) {
         infoStream.message(
             "FP",
@@ -64,11 +66,15 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
   public void onInsert(DocumentsWriterFlushControl control, DocumentsWriterPerThread perThread) {
     if (flushOnDocCount()
         && perThread.getNumDocsInRAM() >= indexWriterConfig.getMaxBufferedDocs()) {
+
       // Flush this state by num docs
       control.setFlushPending(perThread);
+
     } else if (flushOnRAM()) { // flush by RAM
       final long limit = (long) (indexWriterConfig.getRAMBufferSizeMB() * 1024.d * 1024.d);
+
       final long totalRam = control.activeBytes() + control.getDeleteBytesUsed();
+
       if (totalRam >= limit) {
         if (infoStream.isEnabled("FP")) {
           infoStream.message(
@@ -80,6 +86,7 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
                   + " vs limit="
                   + limit);
         }
+
         markLargestWriterPending(control, perThread);
       }
     }
@@ -90,6 +97,7 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
       DocumentsWriterFlushControl control, DocumentsWriterPerThread perThread) {
     DocumentsWriterPerThread largestNonPendingWriter =
         findLargestNonPendingWriter(control, perThread);
+
     if (largestNonPendingWriter != null) {
       control.setFlushPending(largestNonPendingWriter);
     }

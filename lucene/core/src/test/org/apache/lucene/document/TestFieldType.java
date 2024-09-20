@@ -101,9 +101,12 @@ public class TestFieldType extends LuceneTestCase {
   private static FieldType randomFieldType() throws Exception {
     // setDimensions handled special as values must be in-bounds.
     Method setDimensionsMethodA = FieldType.class.getMethod("setDimensions", int.class, int.class);
+
     Method setDimensionsMethodB =
         FieldType.class.getMethod("setDimensions", int.class, int.class, int.class);
+
     FieldType ft = new FieldType();
+
     for (Method method : FieldType.class.getMethods()) {
       if (method.getName().startsWith("set")) {
         final Class<?>[] parameterTypes = method.getParameterTypes();

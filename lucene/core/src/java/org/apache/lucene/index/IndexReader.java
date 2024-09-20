@@ -69,7 +69,9 @@ import org.apache.lucene.util.Bits; // javadocs
 public abstract class IndexReader implements Closeable {
 
   private boolean closed = false;
+
   private boolean closedByChild = false;
+
   private final AtomicInteger refCount = new AtomicInteger(1);
 
   IndexReader() {
@@ -254,7 +256,9 @@ public abstract class IndexReader implements Closeable {
     }
 
     final int rc = refCount.decrementAndGet();
+
     if (rc == 0) {
+
       closed = true;
       try (Closeable finalizer = this::reportCloseToParentReaders;
           Closeable finalizer1 = this::notifyReaderClosedListeners) {
@@ -373,7 +377,9 @@ public abstract class IndexReader implements Closeable {
   // IndexableField
   public final Document document(int docID) throws IOException {
     final DocumentStoredFieldVisitor visitor = new DocumentStoredFieldVisitor();
+
     document(docID, visitor);
+
     return visitor.getDocument();
   }
 

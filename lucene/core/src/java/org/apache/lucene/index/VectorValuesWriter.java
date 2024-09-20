@@ -37,8 +37,11 @@ import org.apache.lucene.util.RamUsageEstimator;
 class VectorValuesWriter {
 
   private final FieldInfo fieldInfo;
+
   private final Counter iwBytesUsed;
+
   private final List<float[]> vectors = new ArrayList<>();
+
   private final DocsWithFieldSet docsWithField;
 
   private int lastDocID = -1;
@@ -47,9 +50,13 @@ class VectorValuesWriter {
 
   VectorValuesWriter(FieldInfo fieldInfo, Counter iwBytesUsed) {
     this.fieldInfo = fieldInfo;
+
     this.iwBytesUsed = iwBytesUsed;
+
     this.docsWithField = new DocsWithFieldSet();
+
     this.bytesUsed = docsWithField.ramBytesUsed();
+
     if (iwBytesUsed != null) {
       iwBytesUsed.addAndGet(bytesUsed);
     }
@@ -78,10 +85,15 @@ class VectorValuesWriter {
               + "\" has dimension "
               + fieldInfo.getVectorDimension());
     }
+
     assert docID > lastDocID;
+
     docsWithField.add(docID);
+
     vectors.add(ArrayUtil.copyOfSubArray(vectorValue, 0, vectorValue.length));
+
     updateBytesUsed();
+
     lastDocID = docID;
   }
 
@@ -92,9 +104,11 @@ class VectorValuesWriter {
                 * (RamUsageEstimator.NUM_BYTES_OBJECT_REF
                     + RamUsageEstimator.NUM_BYTES_ARRAY_HEADER)
             + vectors.size() * vectors.get(0).length * Float.BYTES;
+
     if (iwBytesUsed != null) {
       iwBytesUsed.addAndGet(newBytesUsed - bytesUsed);
     }
+
     bytesUsed = newBytesUsed;
   }
 

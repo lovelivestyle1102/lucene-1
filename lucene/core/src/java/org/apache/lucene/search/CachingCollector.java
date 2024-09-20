@@ -105,7 +105,9 @@ public abstract class CachingCollector extends FilterCollector {
 
     protected void postCollect(NoScoreCachingLeafCollector collector) {
       final int[] docs = collector.cachedDocs();
+
       maxDocsToCache -= docs.length;
+
       this.docs.add(docs);
     }
 
@@ -116,6 +118,7 @@ public abstract class CachingCollector extends FilterCollector {
         } else {
           postCollect(lastCollector);
         }
+
         lastCollector = null;
       }
     }
@@ -160,7 +163,9 @@ public abstract class CachingCollector extends FilterCollector {
     @Override
     protected void postCollect(NoScoreCachingLeafCollector collector) {
       final ScoreCachingLeafCollector coll = (ScoreCachingLeafCollector) collector;
+
       super.postCollect(coll);
+
       scores.add(coll.cachedScores());
     }
 

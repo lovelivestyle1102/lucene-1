@@ -53,19 +53,32 @@ final class SegmentCoreReaders {
   // SegmentReaders:
   private final AtomicInteger ref = new AtomicInteger(1);
 
+  //从索引文件tim&&tip、索引文件doc、索引文件pos&&pay中读取域的索引信息
   final FieldsProducer fields;
+
+  //从索引文件nvd&&nvm中读取域的打分信息
   final NormsProducer normsProducer;
 
+  //从索引文件fdx&&fdt中读取存储域的索引信息
   final StoredFieldsReader fieldsReaderOrig;
+
+  //从索引文件tvx&&tvd读取词向量的索引信息
   final TermVectorsReader termVectorsReaderOrig;
+
+  //从索引文件dim&&dii中读取域值为数值类型的索引信息
   final PointsReader pointsReader;
+
   final KnnVectorsReader knnVectorsReader;
+
   final CompoundDirectory cfsReader;
+
+  //段的前缀名
   final String segment;
   /**
    * fieldinfos for this core: means gen=-1. this is the exact fieldinfos these codec components saw
    * at write. in the case of DV updates, SR may hold a newer version.
    */
+  //从索引文件fnm读取域的信息
   final FieldInfos coreFieldInfos;
 
   // TODO: make a single thread local w/ a
@@ -108,25 +121,32 @@ final class SegmentCoreReaders {
 
       segment = si.info.name;
 
+      //索引文件.fnm
       coreFieldInfos = codec.fieldInfosFormat().read(cfsDir, si.info, "", context);
 
-      final SegmentReadState segmentReadState =
-          new SegmentReadState(cfsDir, si.info, coreFieldInfos, context);
+      final SegmentReadState segmentReadState = new SegmentReadState(cfsDir, si.info, coreFieldInfos, context);
+
       final PostingsFormat format = codec.postingsFormat();
+
       // Ask codec for its Fields
+      //索引文件.tim .tip .doc .pos .pay
+      //Lucene90BlockTreeTermsReader
       fields = format.fieldsProducer(segmentReadState);
+
       assert fields != null;
       // ask codec for its Norms:
       // TODO: since we don't write any norms file if there are no norms,
       // kinda jaky to assume the codec handles the case of no norms file at all gracefully?!
 
       if (coreFieldInfos.hasNorms()) {
+        //索引文件.nvd .nvm
         normsProducer = codec.normsFormat().normsProducer(segmentReadState);
         assert normsProducer != null;
       } else {
         normsProducer = null;
       }
 
+      //索引文件.fdx .fdt
       fieldsReaderOrig =
           si.info
               .getCodec()
@@ -134,6 +154,7 @@ final class SegmentCoreReaders {
               .fieldsReader(cfsDir, si.info, coreFieldInfos, context);
 
       if (coreFieldInfos.hasVectors()) { // open term vector files only as needed
+        //索引文件.tvd .tvx
         termVectorsReaderOrig =
             si.info
                 .getCodec()
@@ -144,6 +165,7 @@ final class SegmentCoreReaders {
       }
 
       if (coreFieldInfos.hasPointValues()) {
+        //索引文件.dim .dii
         pointsReader = codec.pointsFormat().fieldsReader(segmentReadState);
       } else {
         pointsReader = null;

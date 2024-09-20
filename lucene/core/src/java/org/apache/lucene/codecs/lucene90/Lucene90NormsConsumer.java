@@ -47,16 +47,23 @@ final class Lucene90NormsConsumer extends NormsConsumer {
       String dataName =
           IndexFileNames.segmentFileName(
               state.segmentInfo.name, state.segmentSuffix, dataExtension);
+
       data = state.directory.createOutput(dataName, state.context);
+
       CodecUtil.writeIndexHeader(
           data, dataCodec, VERSION_CURRENT, state.segmentInfo.getId(), state.segmentSuffix);
+
       String metaName =
           IndexFileNames.segmentFileName(
               state.segmentInfo.name, state.segmentSuffix, metaExtension);
+
       meta = state.directory.createOutput(metaName, state.context);
+
       CodecUtil.writeIndexHeader(
           meta, metaCodec, VERSION_CURRENT, state.segmentInfo.getId(), state.segmentSuffix);
+
       maxDoc = state.segmentInfo.maxDoc();
+
       success = true;
     } finally {
       if (!success) {
@@ -90,15 +97,20 @@ final class Lucene90NormsConsumer extends NormsConsumer {
   @Override
   public void addNormsField(FieldInfo field, NormsProducer normsProducer) throws IOException {
     NumericDocValues values = normsProducer.getNorms(field);
+
     int numDocsWithValue = 0;
+
     long min = Long.MAX_VALUE;
+
     long max = Long.MIN_VALUE;
+
     for (int doc = values.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = values.nextDoc()) {
       numDocsWithValue++;
       long v = values.longValue();
       min = Math.min(min, v);
       max = Math.max(max, v);
     }
+
     assert numDocsWithValue <= maxDoc;
 
     meta.writeInt(field.number);
@@ -125,14 +137,18 @@ final class Lucene90NormsConsumer extends NormsConsumer {
     }
 
     meta.writeInt(numDocsWithValue);
+
     int numBytesPerValue = numBytesPerValue(min, max);
 
     meta.writeByte((byte) numBytesPerValue);
+
     if (numBytesPerValue == 0) {
       meta.writeLong(min);
     } else {
       meta.writeLong(data.getFilePointer()); // normsOffset
+
       values = normsProducer.getNorms(field);
+
       writeValues(values, numBytesPerValue, data);
     }
   }

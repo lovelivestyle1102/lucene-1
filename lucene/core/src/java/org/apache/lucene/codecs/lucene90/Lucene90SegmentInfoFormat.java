@@ -89,7 +89,9 @@ public class Lucene90SegmentInfoFormat extends SegmentInfoFormat {
   public static final String SI_EXTENSION = "si";
 
   static final String CODEC_NAME = "Lucene90SegmentInfo";
+
   static final int VERSION_START = 0;
+
   static final int VERSION_CURRENT = VERSION_START;
 
   /** Sole constructor. */
@@ -99,6 +101,7 @@ public class Lucene90SegmentInfoFormat extends SegmentInfoFormat {
   public SegmentInfo read(Directory dir, String segment, byte[] segmentID, IOContext context)
       throws IOException {
     final String fileName = IndexFileNames.segmentFileName(segment, "", SI_EXTENSION);
+
     try (ChecksumIndexInput input = dir.openChecksumInput(fileName, context)) {
       Throwable priorE = null;
       SegmentInfo si = null;
@@ -117,8 +120,11 @@ public class Lucene90SegmentInfoFormat extends SegmentInfoFormat {
 
   private SegmentInfo parseSegmentInfo(
       Directory dir, DataInput input, String segment, byte[] segmentID) throws IOException {
+
     final Version version = Version.fromBits(input.readInt(), input.readInt(), input.readInt());
+
     byte hasMinVersion = input.readByte();
+
     final Version minVersion;
     switch (hasMinVersion) {
       case 0:
@@ -135,6 +141,7 @@ public class Lucene90SegmentInfoFormat extends SegmentInfoFormat {
     if (docCount < 0) {
       throw new CorruptIndexException("invalid docCount: " + docCount, input);
     }
+
     final boolean isCompoundFile = input.readByte() == SegmentInfo.YES;
 
     final Map<String, String> diagnostics = input.readMapOfStrings();
@@ -180,6 +187,7 @@ public class Lucene90SegmentInfoFormat extends SegmentInfoFormat {
     try (IndexOutput output = dir.createOutput(fileName, ioContext)) {
       // Only add the file once we've successfully created it, else IFD assert can trip:
       si.addFile(fileName);
+
       CodecUtil.writeIndexHeader(output, CODEC_NAME, VERSION_CURRENT, si.getId(), "");
 
       writeSegmentInfo(output, si);

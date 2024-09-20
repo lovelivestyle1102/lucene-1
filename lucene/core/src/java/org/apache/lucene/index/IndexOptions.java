@@ -27,23 +27,36 @@ public enum IndexOptions {
   // "downgrades" by picking the lowest).
   /** Not indexed */
   NONE,
+
   /**
+   *
+   * 文档写入倒排表，但由于不记录词频信息，因此出现多次也仅当一次处理
+   *
    * Only documents are indexed: term frequencies and positions are omitted. Phrase and other
    * positional queries on the field will throw an exception, and scoring will behave as if any term
    * in the document appears only once.
    */
   DOCS,
+
   /**
+   * 文档和词频写入倒排表
+   *
    * Only documents and term frequencies are indexed: positions are omitted. This enables normal
    * scoring, except Phrase and other positional queries will throw an exception.
    */
   DOCS_AND_FREQS,
+
   /**
+   * 文档、词频及位置写入倒排表
+   *
    * Indexes documents, frequencies and positions. This is a typical default for full-text search:
    * full scoring is enabled and positional queries are supported.
    */
   DOCS_AND_FREQS_AND_POSITIONS,
+
   /**
+   * 文档、词频、位置及偏移写入倒排表
+   *
    * Indexes documents, frequencies, positions and offsets. Character offsets are encoded alongside
    * the positions.
    */

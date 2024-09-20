@@ -86,25 +86,36 @@ import org.apache.lucene.util.RoaringDocIdSet;
 public class LRUQueryCache implements QueryCache, Accountable {
 
   private final int maxSize;
+
   private final long maxRamBytesUsed;
+
   private final Predicate<LeafReaderContext> leavesToCache;
+
   // maps queries that are contained in the cache to a singleton so that this
   // cache does not store several copies of the same query
   private final Map<Query, Query> uniqueQueries;
+
   // The contract between this set and the per-leaf caches is that per-leaf caches
   // are only allowed to store sub-sets of the queries that are contained in
   // mostRecentlyUsedQueries. This is why write operations are performed under a lock
   private final Set<Query> mostRecentlyUsedQueries;
+
   private final Map<IndexReader.CacheKey, LeafCache> cache;
+
   private final ReentrantLock lock;
+
   private final float skipCacheFactor;
 
   // these variables are volatile so that we do not need to sync reads
   // but increments need to be performed under the lock
   private volatile long ramBytesUsed;
+
   private volatile long hitCount;
+
   private volatile long missCount;
+
   private volatile long cacheCount;
+
   private volatile long cacheSize;
 
   /**
@@ -121,18 +132,26 @@ public class LRUQueryCache implements QueryCache, Accountable {
       Predicate<LeafReaderContext> leavesToCache,
       float skipCacheFactor) {
     this.maxSize = maxSize;
+
     this.maxRamBytesUsed = maxRamBytesUsed;
+
     this.leavesToCache = leavesToCache;
+
     if (skipCacheFactor >= 1 == false) { // NaN >= 1 evaluates false
       throw new IllegalArgumentException(
           "skipCacheFactor must be no less than 1, get " + skipCacheFactor);
     }
+
     this.skipCacheFactor = skipCacheFactor;
 
     uniqueQueries = new LinkedHashMap<>(16, 0.75f, true);
+
     mostRecentlyUsedQueries = uniqueQueries.keySet();
+
     cache = new IdentityHashMap<>();
+
     lock = new ReentrantLock();
+
     ramBytesUsed = 0;
   }
 
@@ -153,6 +172,7 @@ public class LRUQueryCache implements QueryCache, Accountable {
   // pkg-private for testing
   static class MinSegmentSizePredicate implements Predicate<LeafReaderContext> {
     private final int minSize;
+
     private final float minSizeRatio;
 
     MinSegmentSizePredicate(int minSize, float minSizeRatio) {
@@ -163,11 +183,15 @@ public class LRUQueryCache implements QueryCache, Accountable {
     @Override
     public boolean test(LeafReaderContext context) {
       final int maxDoc = context.reader().maxDoc();
+
       if (maxDoc < minSize) {
         return false;
       }
+
       final IndexReaderContext topLevelContext = ReaderUtil.getTopLevelContext(context);
+
       final float sizeRatio = (float) context.reader().maxDoc() / topLevelContext.reader().maxDoc();
+
       return sizeRatio >= minSizeRatio;
     }
   }

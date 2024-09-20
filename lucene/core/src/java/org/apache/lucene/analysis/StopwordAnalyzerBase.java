@@ -49,6 +49,7 @@ public abstract class StopwordAnalyzerBase extends Analyzer {
    */
   protected StopwordAnalyzerBase(final CharArraySet stopwords) {
     // analyzers should use char array set for stopwords!
+    //停用词
     this.stopwords =
         stopwords == null
             ? CharArraySet.EMPTY_SET

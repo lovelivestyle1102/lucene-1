@@ -18,18 +18,29 @@ package org.apache.lucene.index;
 
 import org.apache.lucene.util.ArrayUtil;
 
+// 下面所有的数组的下标值都是termID，termID用来区分不同term的唯一标识，它是一个从0开始递增的值，每个term按照处理的先后顺序获得一个termID。
 class ParallelPostingsArray {
   static final int BYTES_PER_POSTING = 3 * Integer.BYTES;
 
   final int size;
+
+  //每一个term在ByteBlockPool对象的buffers [ ] [ ]二维数组中的起始位置。
+  // 下标是termID，值是termID所对应的term在ByteBlockPool中起始offset
   final int[] textStarts; // maps term ID to the terms's text start in the bytesHash
+
+  // 下标是termID，值是termID对应stream记录在IntBlockPool中当前写入位置的offset
   final int[] addressOffset; // maps term ID to current stream address
+
+  // 下标是termID，值是该term的stream在ByteBlockPool中的下一个可以写入的位置
   final int[] byteStarts; // maps term ID to stream start offset in the byte pool
 
   ParallelPostingsArray(final int size) {
     this.size = size;
+
     textStarts = new int[size];
+
     addressOffset = new int[size];
+
     byteStarts = new int[size];
   }
 
@@ -43,8 +54,11 @@ class ParallelPostingsArray {
 
   final ParallelPostingsArray grow() {
     int newSize = ArrayUtil.oversize(size + 1, bytesPerPosting());
+
     ParallelPostingsArray newArray = newInstance(newSize);
+
     copyTo(newArray, size);
+
     return newArray;
   }
 

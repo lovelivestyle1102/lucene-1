@@ -127,9 +127,13 @@ public class TestDocument extends LuceneTestCase {
 
   public void testConstructorExceptions() throws Exception {
     FieldType ft = new FieldType();
+
     ft.setStored(true);
+
     new Field("name", "value", ft); // okay
+
     new StringField("name", "value", Field.Store.NO); // okay
+
     expectThrows(
         IllegalArgumentException.class,
         () -> {
@@ -137,13 +141,21 @@ public class TestDocument extends LuceneTestCase {
         });
 
     Directory dir = newDirectory();
+
     RandomIndexWriter w = new RandomIndexWriter(random(), dir);
+
     new Field("name", "value", ft); // okay
+
     Document doc = new Document();
+
     FieldType ft2 = new FieldType();
+
     ft2.setStored(true);
+
     ft2.setStoreTermVectors(true);
+
     doc.add(new Field("name", "value", ft2));
+
     expectThrows(
         IllegalArgumentException.class,
         () -> {
@@ -248,14 +260,23 @@ public class TestDocument extends LuceneTestCase {
     indexedNotTokenized.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
     indexedNotTokenized.setTokenized(false);
     doc.add(new StringField("keyword", "test1", Field.Store.YES));
+
     doc.add(new StringField("keyword", "test2", Field.Store.YES));
+
     doc.add(new TextField("text", "test1", Field.Store.YES));
+
     doc.add(new TextField("text", "test2", Field.Store.YES));
+
     doc.add(new Field("unindexed", "test1", stored));
+
     doc.add(new Field("unindexed", "test2", stored));
+
     doc.add(new TextField("unstored", "test1", Field.Store.NO));
+
     doc.add(new TextField("unstored", "test2", Field.Store.NO));
+
     doc.add(new Field("indexed_not_tokenized", "test1", indexedNotTokenized));
+
     doc.add(new Field("indexed_not_tokenized", "test2", indexedNotTokenized));
     return doc;
   }
@@ -292,11 +313,15 @@ public class TestDocument extends LuceneTestCase {
   public void testFieldSetValue() throws Exception {
 
     Field field = new StringField("id", "id1", Field.Store.YES);
+
     Document doc = new Document();
+
     doc.add(field);
+
     doc.add(new StringField("keyword", "test", Field.Store.YES));
 
     Directory dir = newDirectory();
+
     RandomIndexWriter writer = new RandomIndexWriter(random(), dir);
     writer.addDocument(doc);
     field.setStringValue("id2");
@@ -305,25 +330,34 @@ public class TestDocument extends LuceneTestCase {
     writer.addDocument(doc);
 
     IndexReader reader = writer.getReader();
+
     IndexSearcher searcher = newSearcher(reader);
 
     Query query = new TermQuery(new Term("keyword", "test"));
 
     // ensure that queries return expected results without DateFilter first
     ScoreDoc[] hits = searcher.search(query, 1000).scoreDocs;
+
     assertEquals(3, hits.length);
+
     int result = 0;
     for (int i = 0; i < 3; i++) {
       Document doc2 = searcher.doc(hits[i].doc);
+
       Field f = (Field) doc2.getField("id");
+
       if (f.stringValue().equals("id1")) result |= 1;
       else if (f.stringValue().equals("id2")) result |= 2;
       else if (f.stringValue().equals("id3")) result |= 4;
       else fail("unexpected id field");
     }
+
     writer.close();
+
     reader.close();
+
     dir.close();
+
     assertEquals("did not see all IDs", 7, result);
   }
 

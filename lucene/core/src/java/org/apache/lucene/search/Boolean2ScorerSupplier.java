@@ -30,9 +30,13 @@ import org.apache.lucene.search.BooleanClause.Occur;
 final class Boolean2ScorerSupplier extends ScorerSupplier {
 
   private final Weight weight;
+
   private final Map<BooleanClause.Occur, Collection<ScorerSupplier>> subs;
+
   private final ScoreMode scoreMode;
+
   private final int minShouldMatch;
+
   private long cost = -1;
 
   Boolean2ScorerSupplier(

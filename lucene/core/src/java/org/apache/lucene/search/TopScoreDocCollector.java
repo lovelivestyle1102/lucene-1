@@ -55,6 +55,7 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
     public LeafCollector getLeafCollector(LeafReaderContext context) throws IOException {
       // reset the minimum competitive score
       docBase = context.docBase;
+
       minCompetitiveScore = 0f;
 
       return new ScorerLeafCollector() {
@@ -76,6 +77,7 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
           assert score >= 0; // NOTE: false for NaN
 
           totalHits++;
+
           hitsThresholdChecker.incrementHitCount();
 
           if (minScoreAcc != null && (totalHits & minScoreAcc.modInterval) == 0) {
@@ -93,9 +95,15 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
             // documents with lower doc Ids. Therefore reject those docs too.
             return;
           }
+
+          //真实的docID需要当前reader的docBase加上doc
           pqTop.doc = doc + docBase;
+
           pqTop.score = score;
+
+          //pg是一个PriorityQueue，它是通过堆结构实现的一个优先队列
           pqTop = pq.updateTop();
+
           updateMinCompetitiveScore(scorer);
         }
       };
@@ -105,6 +113,7 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
   private static class PagingTopScoreDocCollector extends TopScoreDocCollector {
 
     private final ScoreDoc after;
+
     private int collectedHits;
 
     PagingTopScoreDocCollector(
@@ -113,7 +122,9 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
         HitsThresholdChecker hitsThresholdChecker,
         MaxScoreAccumulator minScoreAcc) {
       super(numHits, hitsThresholdChecker, minScoreAcc);
+
       this.after = after;
+
       this.collectedHits = 0;
     }
 
@@ -132,13 +143,16 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
     @Override
     public LeafCollector getLeafCollector(LeafReaderContext context) throws IOException {
       docBase = context.docBase;
+
       final int afterDoc = after.doc - context.docBase;
+
       minCompetitiveScore = 0f;
 
       return new ScorerLeafCollector() {
         @Override
         public void setScorer(Scorable scorer) throws IOException {
           super.setScorer(scorer);
+
           if (minScoreAcc == null) {
             updateMinCompetitiveScore(scorer);
           } else {
@@ -154,6 +168,7 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
           assert score >= 0; // NOTE: false for NaN
 
           totalHits++;
+
           hitsThresholdChecker.incrementHitCount();
 
           if (minScoreAcc != null && (totalHits & minScoreAcc.modInterval) == 0) {
@@ -182,10 +197,15 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
             // documents with lower doc Ids. Therefore reject those docs too.
             return;
           }
+
           collectedHits++;
+
           pqTop.doc = doc + docBase;
+
           pqTop.score = score;
+
           pqTop = pq.updateTop();
+
           updateMinCompetitiveScore(scorer);
         }
       };
@@ -320,10 +340,14 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
       // smaller than the ids in the current leaf
       float score =
           docBase >= maxMinScore.docBase ? Math.nextUp(maxMinScore.score) : maxMinScore.score;
+
       if (score > minCompetitiveScore) {
         assert hitsThresholdChecker.isThresholdReached();
+
         scorer.setMinCompetitiveScore(score);
+
         minCompetitiveScore = score;
+
         totalHitsRelation = TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO;
       }
     }
@@ -336,10 +360,14 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
       // since we tie-break on doc id and collect in doc id order, we can require
       // the next float
       float localMinScore = Math.nextUp(pqTop.score);
+
       if (localMinScore > minCompetitiveScore) {
         scorer.setMinCompetitiveScore(localMinScore);
+
         totalHitsRelation = TotalHits.Relation.GREATER_THAN_OR_EQUAL_TO;
+
         minCompetitiveScore = localMinScore;
+
         if (minScoreAcc != null) {
           // we don't use the next float but we register the document
           // id so that other leaves can require it if they are after

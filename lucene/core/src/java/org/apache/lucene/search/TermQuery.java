@@ -36,29 +36,41 @@ import org.apache.lucene.search.similarities.Similarity;
 public class TermQuery extends Query {
 
   private final Term term;
+
   private final TermStates perReaderTermState;
 
   final class TermWeight extends Weight {
+    //当前查询使用的文档打分规则
     private final Similarity similarity;
+
     private final Similarity.SimScorer simScorer;
+
     private final TermStates termStates;
+
     private final ScoreMode scoreMode;
 
     public TermWeight(
         IndexSearcher searcher, ScoreMode scoreMode, float boost, TermStates termStates)
         throws IOException {
       super(TermQuery.this);
+
       if (scoreMode.needsScores() && termStates == null) {
         throw new IllegalStateException("termStates are required when scores are needed");
       }
+
       this.scoreMode = scoreMode;
+
       this.termStates = termStates;
+
       this.similarity = searcher.getSimilarity();
 
       final CollectionStatistics collectionStats;
+
       final TermStatistics termStats;
+
       if (scoreMode.needsScores()) {
         collectionStats = searcher.collectionStatistics(term.field());
+
         termStats =
             termStates.docFreq() > 0
                 ? searcher.termStatistics(term, termStates.docFreq(), termStates.totalTermFreq())
@@ -66,6 +78,7 @@ public class TermQuery extends Query {
       } else {
         // we do not need the actual stats, use fake stats with docFreq=maxDoc=ttf=1
         collectionStats = new CollectionStatistics(term.field(), 1, 1, 1, 1);
+
         termStats = new TermStatistics(term.bytes(), 1, 1);
       }
 
@@ -79,16 +92,23 @@ public class TermQuery extends Query {
     @Override
     public Matches matches(LeafReaderContext context, int doc) throws IOException {
       TermsEnum te = getTermsEnum(context);
+
       if (te == null) {
         return null;
       }
+
       return MatchesUtils.forField(
+
           term.field(),
+
           () -> {
+
             PostingsEnum pe = te.postings(null, PostingsEnum.OFFSETS);
+
             if (pe.advance(doc) != doc) {
               return null;
             }
+
             return new TermMatchesIterator(getQuery(), pe);
           });
     }
@@ -103,14 +123,19 @@ public class TermQuery extends Query {
       assert termStates == null || termStates.wasBuiltFor(ReaderUtil.getTopLevelContext(context))
           : "The top-reader used to create Weight is not the same as the current reader's top-reader ("
               + ReaderUtil.getTopLevelContext(context);
-      ;
+
+      //SegmentTermsEnum
       final TermsEnum termsEnum = getTermsEnum(context);
+
       if (termsEnum == null) {
         return null;
       }
+
       LeafSimScorer scorer =
           new LeafSimScorer(simScorer, context.reader(), term.field(), scoreMode.needsScores());
+
       if (scoreMode == ScoreMode.TOP_SCORES) {
+        //BlockImpactsEverythingEnum
         return new TermScorer(this, termsEnum.impacts(PostingsEnum.FREQS), scorer);
       } else {
         return new TermScorer(
@@ -132,17 +157,24 @@ public class TermQuery extends Query {
      */
     private TermsEnum getTermsEnum(LeafReaderContext context) throws IOException {
       assert termStates != null;
+
       assert termStates.wasBuiltFor(ReaderUtil.getTopLevelContext(context))
           : "The top-reader used to create Weight is not the same as the current reader's top-reader ("
               + ReaderUtil.getTopLevelContext(context);
+
       final TermState state = termStates.get(context);
+
       if (state == null) { // term is not present in that reader
         assert termNotInReader(context.reader(), term)
             : "no termstate found but term exists in reader term=" + term;
         return null;
       }
+
+      //FieldReader -- >new SegmentTermsEnum(this);
       final TermsEnum termsEnum = context.reader().terms(term.field()).iterator();
+
       termsEnum.seekExact(term.bytes(), state);
+
       return termsEnum;
     }
 
@@ -222,7 +254,9 @@ public class TermQuery extends Query {
   public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost)
       throws IOException {
     final IndexReaderContext context = searcher.getTopReaderContext();
+
     final TermStates termState;
+
     if (perReaderTermState == null || perReaderTermState.wasBuiltFor(context) == false) {
       termState = TermStates.build(context, term, scoreMode.needsScores());
     } else {

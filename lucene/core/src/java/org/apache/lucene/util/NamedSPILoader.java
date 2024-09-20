@@ -64,14 +64,18 @@ public final class NamedSPILoader<S extends NamedSPILoader.NamedSPI> implements 
    */
   public void reload(ClassLoader classloader) {
     Objects.requireNonNull(classloader, "classloader");
+
     final LinkedHashMap<String, S> services = new LinkedHashMap<>(this.services);
+
     for (final S service : ServiceLoader.load(clazz, classloader)) {
       final String name = service.getName();
+
       // only add the first one for each name, later services will be ignored
       // this allows to place services before others in classpath to make
       // them used instead of others
       if (!services.containsKey(name)) {
         checkServiceName(name);
+
         services.put(name, service);
       }
     }

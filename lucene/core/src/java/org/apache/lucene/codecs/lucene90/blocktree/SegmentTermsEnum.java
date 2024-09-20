@@ -35,13 +35,17 @@ import org.apache.lucene.util.fst.Util;
 /** Iterates through terms in this field. */
 final class SegmentTermsEnum extends BaseTermsEnum {
 
-  // Lazy init:
+  // Lazy init: tim文件
   IndexInput in;
 
   private SegmentTermsEnumFrame[] stack;
+
   private final SegmentTermsEnumFrame staticFrame;
+
   SegmentTermsEnumFrame currentFrame;
+
   boolean termExists;
+
   final FieldReader fr;
 
   private int targetBeforeCurrentLength;
@@ -59,6 +63,7 @@ final class SegmentTermsEnum extends BaseTermsEnum {
   private boolean eof;
 
   final BytesRefBuilder term = new BytesRefBuilder();
+
   private final FST.BytesReader fstReader;
 
   @SuppressWarnings({"rawtypes", "unchecked"})
@@ -81,6 +86,7 @@ final class SegmentTermsEnum extends BaseTermsEnum {
       fstReader = fr.index.getBytesReader();
     }
 
+    //初始化开始边，等于是root
     // Init w/ root block; don't use index since it may
     // not (and need not) have been loaded
     for (int arcIdx = 0; arcIdx < arcs.length; arcIdx++) {
@@ -88,14 +94,18 @@ final class SegmentTermsEnum extends BaseTermsEnum {
     }
 
     currentFrame = staticFrame;
+
     final FST.Arc<BytesRef> arc;
+
     if (fr.index != null) {
+      //arcs[0]代表开始节点，当root使用
       arc = fr.index.getFirstArc(arcs[0]);
       // Empty string prefix must have an output in the index!
       assert arc.isFinal();
     } else {
       arc = null;
     }
+
     // currentFrame = pushFrame(arc, rootCode, 0);
     // currentFrame.loadBlock();
     validIndexPrefix = 0;
@@ -219,6 +229,7 @@ final class SegmentTermsEnum extends BaseTermsEnum {
   }
 
   private FST.Arc<BytesRef> getArc(int ord) {
+    //如果长度不够则需要扩容
     if (ord >= arcs.length) {
       @SuppressWarnings({"rawtypes", "unchecked"})
       final FST.Arc<BytesRef>[] next =
@@ -323,6 +334,7 @@ final class SegmentTermsEnum extends BaseTermsEnum {
   @Override
   public boolean seekExact(BytesRef target) throws IOException {
 
+    //FST未初始化
     if (fr.index == null) {
       throw new IllegalStateException("terms index was not loaded");
     }
@@ -343,7 +355,9 @@ final class SegmentTermsEnum extends BaseTermsEnum {
     // }
 
     FST.Arc<BytesRef> arc;
+
     int targetUpto;
+
     BytesRef output;
 
     targetBeforeCurrentLength = currentFrame.ord;
@@ -361,13 +375,17 @@ final class SegmentTermsEnum extends BaseTermsEnum {
       //   System.out.println("  re-use current seek state validIndexPrefix=" + validIndexPrefix);
       // }
 
+      //从开始节点开始
       arc = arcs[0];
+
       assert arc.isFinal();
       output = arc.output();
       targetUpto = 0;
 
       SegmentTermsEnumFrame lastFrame = stack[0];
+
       assert validIndexPrefix <= term.length();
+
 
       final int targetLimit = Math.min(target.length, validIndexPrefix);
 
@@ -388,18 +406,23 @@ final class SegmentTermsEnum extends BaseTermsEnum {
         if (cmp != 0) {
           break;
         }
+
         arc = arcs[1 + targetUpto];
+
         assert arc.label() == (target.bytes[target.offset + targetUpto] & 0xFF)
             : "arc.label="
                 + (char) arc.label()
                 + " targetLabel="
                 + (char) (target.bytes[target.offset + targetUpto] & 0xFF);
+
         if (arc.output() != Lucene90BlockTreeTermsReader.NO_OUTPUT) {
           output = Lucene90BlockTreeTermsReader.FST_OUTPUTS.add(output, arc.output());
         }
+
         if (arc.isFinal()) {
           lastFrame = stack[1 + lastFrame.ord];
         }
+
         targetUpto++;
       }
 
@@ -474,6 +497,7 @@ final class SegmentTermsEnum extends BaseTermsEnum {
     } else {
 
       targetBeforeCurrentLength = -1;
+
       arc = fr.index.getFirstArc(arcs[0]);
 
       // Empty string prefix must have an output (block) in the index!
@@ -490,6 +514,7 @@ final class SegmentTermsEnum extends BaseTermsEnum {
 
       // term.length = 0;
       targetUpto = 0;
+
       currentFrame =
           pushFrame(
               arc, Lucene90BlockTreeTermsReader.FST_OUTPUTS.add(output, arc.nextFinalOutput()), 0);
@@ -508,7 +533,14 @@ final class SegmentTermsEnum extends BaseTermsEnum {
       final int targetLabel = target.bytes[target.offset + targetUpto] & 0xFF;
 
       final FST.Arc<BytesRef> nextArc =
-          fr.index.findTargetArc(targetLabel, arc, getArc(1 + targetUpto), fstReader);
+          fr.index.findTargetArc(
+                  //标签，也就是term的字符
+                  targetLabel,
+                  //当前边
+                  arc,
+                  //下一个边
+                  getArc(1 + targetUpto),
+                  fstReader);
 
       if (nextArc == null) {
 
@@ -551,10 +583,13 @@ final class SegmentTermsEnum extends BaseTermsEnum {
       } else {
         // Follow this arc
         arc = nextArc;
+
         term.setByteAt(targetUpto, (byte) targetLabel);
+
         // Aggregate output as we go:
         assert arc.output() != null;
         if (arc.output() != Lucene90BlockTreeTermsReader.NO_OUTPUT) {
+          //计算output值
           output = Lucene90BlockTreeTermsReader.FST_OUTPUTS.add(output, arc.output());
         }
 
@@ -564,6 +599,7 @@ final class SegmentTermsEnum extends BaseTermsEnum {
         // }
         targetUpto++;
 
+        //最后节点
         if (arc.isFinal()) {
           // if (DEBUG) System.out.println("    arc is final!");
           currentFrame =
@@ -629,7 +665,9 @@ final class SegmentTermsEnum extends BaseTermsEnum {
     // }
 
     FST.Arc<BytesRef> arc;
+
     int targetUpto;
+
     BytesRef output;
 
     targetBeforeCurrentLength = currentFrame.ord;
@@ -759,6 +797,8 @@ final class SegmentTermsEnum extends BaseTermsEnum {
     } else {
 
       targetBeforeCurrentLength = -1;
+
+      //初始化头节点
       arc = fr.index.getFirstArc(arcs[0]);
 
       // Empty string prefix must have an output (block) in the index!
@@ -775,6 +815,7 @@ final class SegmentTermsEnum extends BaseTermsEnum {
 
       // term.length = 0;
       targetUpto = 0;
+
       currentFrame =
           pushFrame(
               arc, Lucene90BlockTreeTermsReader.FST_OUTPUTS.add(output, arc.nextFinalOutput()), 0);
@@ -1175,7 +1216,9 @@ final class SegmentTermsEnum extends BaseTermsEnum {
   @Override
   public TermState termState() throws IOException {
     assert !eof;
+
     currentFrame.decodeMetaData();
+
     TermState ts = currentFrame.state.clone();
     // if (DEBUG) System.out.println("BTTR.termState seg=" + segment + " state=" + ts);
     return ts;

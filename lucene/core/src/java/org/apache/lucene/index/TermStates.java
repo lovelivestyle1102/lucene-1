@@ -37,25 +37,36 @@ public final class TermStates {
 
   // Important: do NOT keep hard references to index readers
   private final Object topReaderContextIdentity;
+
   private final TermState[] states;
+
   private final Term term; // null if stats are to be used
+
   private int docFreq;
+
   private long totalTermFreq;
 
   // public static boolean DEBUG = BlockTreeTermsWriter.DEBUG;
 
   private TermStates(Term term, IndexReaderContext context) {
     assert context != null && context.isTopLevel;
+
     topReaderContextIdentity = context.identity;
+
     docFreq = 0;
+
     totalTermFreq = 0;
+
     final int len;
+
     if (context.leaves() == null) {
       len = 1;
     } else {
       len = context.leaves().size();
     }
+
     states = new TermState[len];
+
     this.term = term;
   }
 
@@ -95,14 +106,20 @@ public final class TermStates {
   public static TermStates build(IndexReaderContext context, Term term, boolean needsStats)
       throws IOException {
     assert context != null && context.isTopLevel;
+
     final TermStates perReaderTermState = new TermStates(needsStats ? null : term, context);
+
     if (needsStats) {
       for (final LeafReaderContext ctx : context.leaves()) {
         // if (DEBUG) System.out.println("  r=" + leaves[i].reader);
         TermsEnum termsEnum = loadTermsEnum(ctx, term);
+
         if (termsEnum != null) {
+          //如果找到了该term，则返回其TermState
           final TermState termState = termsEnum.termState();
+
           // if (DEBUG) System.out.println("    found");
+          //注册到TermContext
           perReaderTermState.register(
               termState, ctx.ord, termsEnum.docFreq(), termsEnum.totalTermFreq());
         }
@@ -111,14 +128,34 @@ public final class TermStates {
     return perReaderTermState;
   }
 
+  /**
+   *
+   * 从context中查询term
+   *
+   * @param ctx
+   * @param term
+   * @return
+   * @throws IOException
+   */
   private static TermsEnum loadTermsEnum(LeafReaderContext ctx, Term term) throws IOException {
+    //CodecReader getPostingsReader().terms(field)
+    //getPostingsReader() --> core.fields
+    //core = new SegmentCoreReaders(si.info.dir, si, context)
+    //fields = format.fieldsProducer(segmentReadState);
+    //Lucene90BlockTreeTermsReader  fieldMap.get(field)
+    //terms最终返回的是 FieldReader
     final Terms terms = ctx.reader().terms(term.field());
+
     if (terms != null) {
+      //实际terms最终返回的是new SegmentTermsEnum(this);
       final TermsEnum termsEnum = terms.iterator();
+
+      //查找到term，则返回
       if (termsEnum.seekExact(term.bytes())) {
         return termsEnum;
       }
     }
+
     return null;
   }
 

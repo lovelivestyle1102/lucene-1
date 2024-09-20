@@ -68,16 +68,23 @@ import org.apache.lucene.util.hnsw.HnswGraph;
 public final class Lucene90HnswVectorsFormat extends KnnVectorsFormat {
 
   static final String META_CODEC_NAME = "Lucene90HnswVectorsFormatMeta";
+
   static final String VECTOR_DATA_CODEC_NAME = "Lucene90HnswVectorsFormatData";
+
   static final String VECTOR_INDEX_CODEC_NAME = "Lucene90HnswVectorsFormatIndex";
+
   static final String META_EXTENSION = "vem";
+
   static final String VECTOR_DATA_EXTENSION = "vec";
+
   static final String VECTOR_INDEX_EXTENSION = "vex";
 
   static final int VERSION_START = 0;
+
   static final int VERSION_CURRENT = VERSION_START;
 
   public static final int DEFAULT_MAX_CONN = 16;
+
   public static final int DEFAULT_BEAM_WIDTH = 100;
 
   /**

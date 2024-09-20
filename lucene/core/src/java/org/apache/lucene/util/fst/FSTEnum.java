@@ -568,6 +568,7 @@ abstract class FSTEnum<T> {
 
     // System.out.println("FE: after rewind upto=" + upto);
     FST.Arc<T> arc = getArc(upto - 1);
+
     int targetLabel = getTargetLabel();
 
     final FST.BytesReader fstReader = fst.getBytesReader();
@@ -575,6 +576,7 @@ abstract class FSTEnum<T> {
     while (true) {
       // System.out.println("  cycle target=" + (targetLabel == -1 ? "-1" : (char) targetLabel));
       final FST.Arc<T> nextArc = fst.findTargetArc(targetLabel, arc, getArc(upto), fstReader);
+
       if (nextArc == null) {
         // short circuit
         // upto--;
@@ -583,16 +585,22 @@ abstract class FSTEnum<T> {
         // System.out.println("  no match upto=" + upto);
         return false;
       }
+
       // Match -- recurse:
       output[upto] = fst.outputs.add(output[upto - 1], nextArc.output());
+
       if (targetLabel == FST.END_LABEL) {
         // System.out.println("  return found; upto=" + upto + " output=" + output[upto] + "
         // nextArc=" + nextArc.isLast());
         return true;
       }
+
       setCurrentLabel(targetLabel);
+
       incr();
+
       targetLabel = getTargetLabel();
+
       arc = nextArc;
     }
   }

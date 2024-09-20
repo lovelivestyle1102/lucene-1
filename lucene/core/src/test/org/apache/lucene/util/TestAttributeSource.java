@@ -83,9 +83,14 @@ public class TestAttributeSource extends LuceneTestCase {
 
   public void testCloneAttributes() {
     final AttributeSource src = new AttributeSource();
+
+    //获取的起始是FlagsAttributeImpl
     final FlagsAttribute flagsAtt = src.addAttribute(FlagsAttribute.class);
+
     final TypeAttribute typeAtt = src.addAttribute(TypeAttribute.class);
+
     flagsAtt.setFlags(1234);
+
     typeAtt.setType("TestType");
 
     final AttributeSource clone = src.cloneAttributes();

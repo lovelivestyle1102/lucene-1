@@ -27,7 +27,9 @@ import org.apache.lucene.util.BytesRef;
  */
 public final class BytesRefFSTEnum<T> extends FSTEnum<T> {
   private final BytesRef current = new BytesRef(10);
+
   private final InputOutput<T> result = new InputOutput<>();
+
   private BytesRef target;
 
   /** Holds a single input (BytesRef) + output pair. */
@@ -79,9 +81,13 @@ public final class BytesRefFSTEnum<T> extends FSTEnum<T> {
    */
   public InputOutput<T> seekExact(BytesRef target) throws IOException {
     this.target = target;
+
     targetLength = target.length;
+
     if (doSeekExact()) {
+
       assert upto == 1 + target.length;
+
       return setResult();
     } else {
       return null;

@@ -50,7 +50,9 @@ public final class TotalHits {
     if (value < 0) {
       throw new IllegalArgumentException("value must be >= 0, got " + value);
     }
+
     this.value = value;
+
     this.relation = Objects.requireNonNull(relation);
   }
 

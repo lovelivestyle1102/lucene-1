@@ -46,25 +46,46 @@ import org.apache.lucene.store.IndexOutput;
  * uptos(position, payload). 4. start offset.
  */
 final class Lucene90SkipWriter extends MultiLevelSkipListWriter {
+  // 下标是level，值是指定level的前一个跳表节点的docID
   private int[] lastSkipDoc;
+
+  // 下标是level，值是指定level的前一个block的doc索引文件的结束位置，其实就是当前block的开始的位置
   private long[] lastSkipDocPointer;
+
+  // 下标是level，值是指定level的前一个block的pos索引文件的结束位置，其实就是当前block的开始的位置
   private long[] lastSkipPosPointer;
+
+  // 下标是level，值是指定level的前一个block的pay索引文件的结束位置，其实就是当前block的开始的位置
   private long[] lastSkipPayPointer;
+
+  // 下标是level，值是指定level的前一个block的payload缓存的结束位置，其实就是当前block的开始的位置
   private int[] lastPayloadByteUpto;
 
   private final IndexOutput docOut;
+
   private final IndexOutput posOut;
+
   private final IndexOutput payOut;
 
+  // 当前block的docID
   private int curDoc;
+  // 当前block在doc文件的结束位置
   private long curDocPointer;
+  // 当前block在pos文件的结束位置
   private long curPosPointer;
+  // 当前block在pay文件的结束位置
   private long curPayPointer;
+  // 当前block在posBuffer中的结束位置
   private int curPosBufferUpto;
+  // 当前block在payloadBuffer中的结束位置
   private int curPayloadByteUpto;
+
   private CompetitiveImpactAccumulator[] curCompetitiveFreqNorms;
+
   private boolean fieldHasPositions;
+
   private boolean fieldHasOffsets;
+
   private boolean fieldHasPayloads;
 
   public Lucene90SkipWriter(
@@ -75,20 +96,29 @@ final class Lucene90SkipWriter extends MultiLevelSkipListWriter {
       IndexOutput posOut,
       IndexOutput payOut) {
     super(blockSize, 8, maxSkipLevels, docCount);
+
     this.docOut = docOut;
+
     this.posOut = posOut;
+
     this.payOut = payOut;
 
     lastSkipDoc = new int[maxSkipLevels];
+
     lastSkipDocPointer = new long[maxSkipLevels];
+
     if (posOut != null) {
       lastSkipPosPointer = new long[maxSkipLevels];
+
       if (payOut != null) {
         lastSkipPayPointer = new long[maxSkipLevels];
       }
+
       lastPayloadByteUpto = new int[maxSkipLevels];
     }
+
     curCompetitiveFreqNorms = new CompetitiveImpactAccumulator[maxSkipLevels];
+
     for (int i = 0; i < maxSkipLevels; ++i) {
       curCompetitiveFreqNorms[i] = new CompetitiveImpactAccumulator();
     }
@@ -97,7 +127,9 @@ final class Lucene90SkipWriter extends MultiLevelSkipListWriter {
   public void setField(
       boolean fieldHasPositions, boolean fieldHasOffsets, boolean fieldHasPayloads) {
     this.fieldHasPositions = fieldHasPositions;
+
     this.fieldHasOffsets = fieldHasOffsets;
+
     this.fieldHasPayloads = fieldHasPayloads;
   }
 
@@ -109,37 +141,50 @@ final class Lucene90SkipWriter extends MultiLevelSkipListWriter {
   // save
   // away the previous pointers, and lazy-init only if we need to buffer skip data for the term.
   private boolean initialized;
+
   long lastDocFP;
+
   long lastPosFP;
+
   long lastPayFP;
 
   @Override
   public void resetSkip() {
     lastDocFP = docOut.getFilePointer();
+
     if (fieldHasPositions) {
       lastPosFP = posOut.getFilePointer();
+
       if (fieldHasOffsets || fieldHasPayloads) {
         lastPayFP = payOut.getFilePointer();
       }
     }
+
     if (initialized) {
       for (CompetitiveImpactAccumulator acc : curCompetitiveFreqNorms) {
         acc.clear();
       }
     }
+    
     initialized = false;
   }
 
   private void initSkip() {
     if (!initialized) {
+
       super.resetSkip();
+
       Arrays.fill(lastSkipDoc, 0);
+
       Arrays.fill(lastSkipDocPointer, lastDocFP);
+
       if (fieldHasPositions) {
         Arrays.fill(lastSkipPosPointer, lastPosFP);
+
         if (fieldHasPayloads) {
           Arrays.fill(lastPayloadByteUpto, 0);
         }
+
         if (fieldHasOffsets || fieldHasPayloads) {
           Arrays.fill(lastSkipPayPointer, lastPayFP);
         }
@@ -165,6 +210,7 @@ final class Lucene90SkipWriter extends MultiLevelSkipListWriter {
       int payloadByteUpto)
       throws IOException {
     initSkip();
+
     this.curDoc = doc;
     this.curDocPointer = docOut.getFilePointer();
     this.curPosPointer = posFP;
@@ -172,6 +218,7 @@ final class Lucene90SkipWriter extends MultiLevelSkipListWriter {
     this.curPosBufferUpto = posBufferUpto;
     this.curPayloadByteUpto = payloadByteUpto;
     this.curCompetitiveFreqNorms[0].addAll(competitiveFreqNorms);
+
     bufferSkip(numDocs);
   }
 
@@ -179,19 +226,27 @@ final class Lucene90SkipWriter extends MultiLevelSkipListWriter {
 
   @Override
   protected void writeSkipData(int level, DataOutput skipBuffer) throws IOException {
-
+    // 当前block的docID和第level层的前一个block的docID的差值
     int delta = curDoc - lastSkipDoc[level];
 
+    // 写入block的docID差值
     skipBuffer.writeVInt(delta);
+
     lastSkipDoc[level] = curDoc;
 
+    // 写入block在doc索引文件中的大小
     skipBuffer.writeVLong(curDocPointer - lastSkipDocPointer[level]);
+
     lastSkipDocPointer[level] = curDocPointer;
 
     if (fieldHasPositions) {
 
+      // 写入block在pos索引文件中的大小
       skipBuffer.writeVLong(curPosPointer - lastSkipPosPointer[level]);
+
       lastSkipPosPointer[level] = curPosPointer;
+
+      // 因为position是按block存储的，但是有可能一个block是多个doc共享的，所以需要记录当前skip在block的截止位置
       skipBuffer.writeVInt(curPosBufferUpto);
 
       if (fieldHasPayloads) {
@@ -199,20 +254,27 @@ final class Lucene90SkipWriter extends MultiLevelSkipListWriter {
       }
 
       if (fieldHasOffsets || fieldHasPayloads) {
+        // 写入block在pay索引文件中的大小
         skipBuffer.writeVLong(curPayPointer - lastSkipPayPointer[level]);
         lastSkipPayPointer[level] = curPayPointer;
       }
     }
 
     CompetitiveImpactAccumulator competitiveFreqNorms = curCompetitiveFreqNorms[level];
+
     assert competitiveFreqNorms.getCompetitiveFreqNormPairs().size() > 0;
     if (level + 1 < numberOfSkipLevels) {
       curCompetitiveFreqNorms[level + 1].addAll(competitiveFreqNorms);
     }
+
     writeImpacts(competitiveFreqNorms, freqNormOut);
+
     skipBuffer.writeVInt(Math.toIntExact(freqNormOut.size()));
+
     freqNormOut.copyTo(skipBuffer);
+
     freqNormOut.reset();
+
     competitiveFreqNorms.clear();
   }
 

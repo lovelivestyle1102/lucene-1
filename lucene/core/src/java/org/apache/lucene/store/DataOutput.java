@@ -87,8 +87,15 @@ public abstract class DataOutput {
   }
 
   /**
+   * 整型（int)变长保存，正常int占4个字节
+   *
    * Writes an int in a variable-length format. Writes between one and five bytes. Smaller values
-   * take fewer bytes. Negative numbers are supported, but should be avoided.
+   * take fewer bytes.
+   *
+   *
+   *  刚才说到的vint编码有一个劣势，就是对于负数仍然会耗费大量的字节
+   *
+   *  Negative numbers are supported, but should be avoided.
    *
    * <p>VByte is a variable-length format for positive integers is defined where the high-order bit
    * of each byte indicates whether more bytes remain to be read. The low-order seven bits are

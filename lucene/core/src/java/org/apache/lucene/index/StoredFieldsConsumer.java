@@ -26,13 +26,20 @@ import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.IOUtils;
 
 class StoredFieldsConsumer {
+  //TODO
   final Codec codec;
+
   final Directory directory;
+
   final SegmentInfo info;
+
+  // 实现类是  Lucene90CompressingStoredFieldsWriter，负责正排索引文件的持久化
   StoredFieldsWriter writer;
+
   // this accountable either holds the writer or one that returns null.
   // it's cleaner than checking if the writer is null all over the place
   Accountable accountable = Accountable.NULL_ACCOUNTABLE;
+
   private int lastDoc;
 
   StoredFieldsConsumer(Codec codec, Directory directory, SegmentInfo info) {
@@ -46,21 +53,29 @@ class StoredFieldsConsumer {
     if (writer
         == null) { // TODO can we allocate this in the ctor? we call start document for every doc
       // anyway
+      //org.apache.lucene.codecs.lucene90.Lucene90Codec
       this.writer = codec.storedFieldsFormat().fieldsWriter(directory, info, IOContext.DEFAULT);
+
       accountable = writer;
     }
   }
 
   void startDocument(int docID) throws IOException {
     assert lastDoc < docID;
+
+    //初始化field写执行器
     initStoredFieldsWriter();
-    while (++lastDoc < docID) {
+
+    while (++lastDoc < docID) { // 确保doc是连续的
       writer.startDocument();
+
       writer.finishDocument();
     }
+
     writer.startDocument();
   }
 
+  // 每个需要构建的正排字段都会被处理
   void writeField(FieldInfo info, IndexableField field) throws IOException {
     writer.writeField(info, field);
   }

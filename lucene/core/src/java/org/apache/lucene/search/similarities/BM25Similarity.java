@@ -248,6 +248,7 @@ public class BM25Similarity extends Similarity {
       // Finally we expand weight * (1 - 1 / (1 + freq * 1/norm)) to
       // weight - weight / (1 + freq * 1/norm), which runs slightly faster.
       float normInverse = cache[((byte) encodedNorm) & 0xFF];
+
       return weight - weight / (1f + freq * normInverse);
     }
 

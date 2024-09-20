@@ -47,9 +47,13 @@ import org.apache.lucene.util.FixedBitSet;
  */
 public abstract class PointRangeQuery extends Query {
   final String field;
+
   final int numDims;
+
   final int bytesPerDim;
+
   final byte[] lowerPoint;
+
   final byte[] upperPoint;
 
   /**
@@ -64,16 +68,21 @@ public abstract class PointRangeQuery extends Query {
    */
   protected PointRangeQuery(String field, byte[] lowerPoint, byte[] upperPoint, int numDims) {
     checkArgs(field, lowerPoint, upperPoint);
+
     this.field = field;
+
     if (numDims <= 0) {
       throw new IllegalArgumentException("numDims must be positive, got " + numDims);
     }
+
     if (lowerPoint.length == 0) {
       throw new IllegalArgumentException("lowerPoint has length of zero");
     }
+
     if (lowerPoint.length % numDims != 0) {
       throw new IllegalArgumentException("lowerPoint is not a fixed multiple of numDims");
     }
+
     if (lowerPoint.length != upperPoint.length) {
       throw new IllegalArgumentException(
           "lowerPoint has length="
@@ -81,10 +90,13 @@ public abstract class PointRangeQuery extends Query {
               + " but upperPoint has different length="
               + upperPoint.length);
     }
+
     this.numDims = numDims;
+
     this.bytesPerDim = lowerPoint.length / numDims;
 
     this.lowerPoint = lowerPoint;
+
     this.upperPoint = upperPoint;
   }
 
@@ -98,9 +110,11 @@ public abstract class PointRangeQuery extends Query {
     if (field == null) {
       throw new IllegalArgumentException("field must not be null");
     }
+
     if (lowerPoint == null) {
       throw new IllegalArgumentException("lowerPoint must not be null");
     }
+
     if (upperPoint == null) {
       throw new IllegalArgumentException("upperPoint must not be null");
     }

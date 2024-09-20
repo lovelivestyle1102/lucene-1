@@ -365,15 +365,20 @@ public final class Lucene90PostingsFormat extends PostingsFormat {
   static final int MAX_SKIP_LEVELS = 10;
 
   static final String TERMS_CODEC = "Lucene90PostingsWriterTerms";
+
   static final String DOC_CODEC = "Lucene90PostingsWriterDoc";
+
   static final String POS_CODEC = "Lucene90PostingsWriterPos";
+
   static final String PAY_CODEC = "Lucene90PostingsWriterPay";
 
   // Increment version to change it
   static final int VERSION_START = 0;
+
   static final int VERSION_CURRENT = VERSION_START;
 
   private final int minTermBlockSize;
+
   private final int maxTermBlockSize;
 
   /** Creates {@code Lucene90PostingsFormat} with default settings. */
@@ -393,7 +398,9 @@ public final class Lucene90PostingsFormat extends PostingsFormat {
   public Lucene90PostingsFormat(int minTermBlockSize, int maxTermBlockSize) {
     super("Lucene90");
     Lucene90BlockTreeTermsWriter.validateSettings(minTermBlockSize, maxTermBlockSize);
+    //25
     this.minTermBlockSize = minTermBlockSize;
+    //48
     this.maxTermBlockSize = maxTermBlockSize;
   }
 
@@ -424,6 +431,7 @@ public final class Lucene90PostingsFormat extends PostingsFormat {
     PostingsReaderBase postingsReader = new Lucene90PostingsReader(state);
     boolean success = false;
     try {
+      //构建倒排索引查询器
       FieldsProducer ret = new Lucene90BlockTreeTermsReader(postingsReader, state);
       success = true;
       return ret;
@@ -441,23 +449,49 @@ public final class Lucene90PostingsFormat extends PostingsFormat {
    * @lucene.internal
    */
   public static final class IntBlockTermState extends BlockTermState {
-    /** file pointer to the start of the doc ids enumeration, in {@link #DOC_EXTENSION} file */
-    public long docStartFP;
-    /** file pointer to the start of the positions enumeration, in {@link #POS_EXTENSION} file */
-    public long posStartFP;
-    /** file pointer to the start of the payloads enumeration, in {@link #PAY_EXTENSION} file */
-    public long payStartFP;
     /**
+     * 当前term的文档号docId，词频信息frequency的索引文件.doc的起始位置
+     *
+     * file pointer to the start of the doc ids enumeration, in {@link #DOC_EXTENSION} file
+     */
+    public long docStartFP;
+
+    /**
+     * 当前term的位置信息position在索引文件的.pos的起始位置
+     *
+     * file pointer to the start of the positions enumeration, in {@link #POS_EXTENSION} file
+     * */
+    public long posStartFP;
+
+    /**
+     * 当前term的偏移位置offset，payload在索引文件.pay的起始位置
+     *
+     * file pointer to the start of the payloads enumeration, in {@link #PAY_EXTENSION} file
+     *
+     */
+    public long payStartFP;
+
+    /**
+     * 当前term的跳表信息在索引文件.doc的起始位置
+     *
      * file offset for the start of the skip list, relative to docStartFP, if there are more than
      * {@link ForUtil#BLOCK_SIZE} docs; otherwise -1
      */
     public long skipOffset;
+
     /**
+     * 如果该值为-1，说明term在所有文档中的词频没有达到128，即没有生成已block，如果至少存在一个block，那么该值描述的是VintBlocks在索引文件的起始位置
+     *
      * file offset for the last position in the last block, if there are more than {@link
      * ForUtil#BLOCK_SIZE} positions; otherwise -1
      */
     public long lastPosBlockOffset;
+
     /**
+     *
+     * 该值如果不为-1，说明只有一篇文档包含当前term，那么singletonDocID的值为对应的文档号，singletonDocID的存在会影响
+     * 索引文件的数据结构，在生成InnerNode流程点会介绍该值的影响
+     *
      * docid when there is a single pulsed posting, otherwise -1. freq is always implicitly
      * totalTermFreq in this case.
      */

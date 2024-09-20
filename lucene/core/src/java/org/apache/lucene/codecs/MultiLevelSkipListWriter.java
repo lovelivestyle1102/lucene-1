@@ -50,37 +50,54 @@ import org.apache.lucene.util.MathUtil;
  *
  * @lucene.experimental
  */
+// df就是整个跳表要容纳的文档总数，根据这个参数可以算出跳表最高层数
 public abstract class MultiLevelSkipListWriter {
-  /** number of levels in this skip list */
+  /**
+   * 跳表的层数
+   * number of levels in this skip list
+   **/
   protected final int numberOfSkipLevels;
 
-  /** the skip interval in the list with level = 0 */
+  /**
+   * 每处理skipInterval个文档生成一个第0层跳表的节点，其实就是每个跳表节点包含的文档数
+   *
+   * the skip interval in the list with level = 0
+   **/
   private final int skipInterval;
 
   /** skipInterval used for level &gt; 0 */
+  // 从第0层开始，每层间隔skipMultiplier的节点就加入上一层
   private final int skipMultiplier;
 
   /** for every skip level a different buffer is used */
+  // 存储跳表每一层的数据的缓存
   private ByteBuffersDataOutput[] skipBuffer;
 
   /** Creates a {@code MultiLevelSkipListWriter}. */
   protected MultiLevelSkipListWriter(
       int skipInterval, int skipMultiplier, int maxSkipLevels, int df) {
     this.skipInterval = skipInterval;
+
     this.skipMultiplier = skipMultiplier;
 
     int numberOfSkipLevels;
+
     // calculate the maximum number of skip levels for this document frequency
+    // 如果文档总数小于skipInterval，则只有一层
     if (df <= skipInterval) {
       numberOfSkipLevels = 1;
     } else {
+      // df / skipInterval表示最底层有多少个节点
+      // skipMultiplier 表示下一层间隔多少个节点生成上一层的节点
       numberOfSkipLevels = 1 + MathUtil.log(df / skipInterval, skipMultiplier);
     }
 
     // make sure it does not exceed maxSkipLevels
+    // 不能超过最大层数限制
     if (numberOfSkipLevels > maxSkipLevels) {
       numberOfSkipLevels = maxSkipLevels;
     }
+
     this.numberOfSkipLevels = numberOfSkipLevels;
   }
 
@@ -88,13 +105,16 @@ public abstract class MultiLevelSkipListWriter {
    * Creates a {@code MultiLevelSkipListWriter}, where {@code skipInterval} and {@code
    * skipMultiplier} are the same.
    */
+  // df就是整个跳表要容纳的文档总数，根据这个参数可以算出跳表最高层数
   protected MultiLevelSkipListWriter(int skipInterval, int maxSkipLevels, int df) {
     this(skipInterval, skipInterval, maxSkipLevels, df);
   }
 
   /** Allocates internal skip buffers. */
   protected void init() {
+    // 每一层一个buffer
     skipBuffer = new ByteBuffersDataOutput[numberOfSkipLevels];
+
     for (int i = 0; i < numberOfSkipLevels; i++) {
       skipBuffer[i] = ByteBuffersDataOutput.newResettableInstance();
     }
@@ -129,23 +149,33 @@ public abstract class MultiLevelSkipListWriter {
   public void bufferSkip(int df) throws IOException {
 
     assert df % skipInterval == 0;
+
     int numLevels = 1;
+
+    // 现在df表示最底层有多少个节点
     df /= skipInterval;
 
     // determine max level
+    // 计算当前的skip节点可以到达第几层，上限是 numberOfSkipLevels 层
     while ((df % skipMultiplier) == 0 && numLevels < numberOfSkipLevels) {
       numLevels++;
+
       df /= skipMultiplier;
     }
 
+    // 上层skip节点指向下层skip节点的指针，其实是相对于skip起始位置的相对位置
     long childPointer = 0;
 
+    // 生成每一层的跳表数据
     for (int level = 0; level < numLevels; level++) {
+      // 生成跳表数据写入  skipBuffer[level]，具体有子类实现每个跳表节点存储的数据
       writeSkipData(level, skipBuffer[level]);
 
+      // 下一层节点的指针是目前level层的大小，也就是相对跳表起始位置
       long newChildPointer = skipBuffer[level].size();
 
       if (level != 0) {
+        // 除了最底层，其他层都记录下一层的起始位置
         // store child pointers for all levels except the lowest
         writeChildPointer(childPointer, skipBuffer[level]);
       }
@@ -163,16 +193,21 @@ public abstract class MultiLevelSkipListWriter {
    */
   public long writeSkip(IndexOutput output) throws IOException {
     long skipPointer = output.getFilePointer();
+
     // System.out.println("skipper.writeSkip fp=" + skipPointer);
     if (skipBuffer == null || skipBuffer.length == 0) return skipPointer;
 
+    // 从最高层往下持久化
     for (int level = numberOfSkipLevels - 1; level > 0; level--) {
       long length = skipBuffer[level].size();
+
+      // 除了第一层，其他层都是先写长度再写内容
       if (length > 0) {
         writeLevelLength(length, output);
         skipBuffer[level].copyTo(output);
       }
     }
+
     skipBuffer[0].copyTo(output);
 
     return skipPointer;

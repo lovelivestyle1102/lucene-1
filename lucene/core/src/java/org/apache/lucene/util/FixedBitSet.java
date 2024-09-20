@@ -34,7 +34,9 @@ public final class FixedBitSet extends BitSet {
       RamUsageEstimator.shallowSizeOfInstance(FixedBitSet.class);
 
   private final long[] bits; // Array of longs holding the bits
+
   private final int numBits; // The number of bits in use
+
   private final int numWords; // The exact number of longs needed to hold numBits (<= bits.length)
 
   /**
@@ -52,10 +54,13 @@ public final class FixedBitSet extends BitSet {
       // Depends on the ghost bits being clear!
       // (Otherwise, they may become visible in the new instance)
       int numWords = bits2words(numBits);
+
       long[] arr = bits.getBits();
+
       if (numWords >= arr.length) {
         arr = ArrayUtil.grow(arr, numWords + 1);
       }
+
       return new FixedBitSet(arr, arr.length << 6);
     }
   }
@@ -95,9 +100,11 @@ public final class FixedBitSet extends BitSet {
   public static long andNotCount(FixedBitSet a, FixedBitSet b) {
     // Depends on the ghost bits being clear!
     long tot = BitUtil.pop_andnot(a.bits, b.bits, 0, Math.min(a.numWords, b.numWords));
+
     if (a.numWords > b.numWords) {
       tot += BitUtil.pop_array(a.bits, b.numWords, a.numWords - b.numWords);
     }
+
     return tot;
   }
 
@@ -109,7 +116,9 @@ public final class FixedBitSet extends BitSet {
    */
   public FixedBitSet(int numBits) {
     this.numBits = numBits;
+
     bits = new long[bits2words(numBits)];
+
     numWords = bits.length;
   }
 
@@ -123,11 +132,14 @@ public final class FixedBitSet extends BitSet {
    */
   public FixedBitSet(long[] storedBits, int numBits) {
     this.numWords = bits2words(numBits);
+
     if (numWords > storedBits.length) {
       throw new IllegalArgumentException(
           "The given long array is too small  to hold " + numBits + " bits");
     }
+
     this.numBits = numBits;
+
     this.bits = storedBits;
 
     assert verifyGhostBitsClear();
@@ -179,36 +191,53 @@ public final class FixedBitSet extends BitSet {
   @Override
   public boolean get(int index) {
     assert index >= 0 && index < numBits : "index=" + index + ", numBits=" + numBits;
+
     int i = index >> 6; // div 64
+
     // signed shift will keep a negative index and force an
     // array-index-out-of-bounds-exception, removing the need for an explicit check.
     long bitmask = 1L << index;
+
     return (bits[i] & bitmask) != 0;
   }
 
   @Override
   public void set(int index) {
     assert index >= 0 && index < numBits : "index=" + index + ", numBits=" + numBits;
+
+    // 将index根据64进行划分，比如 0~63都属于一个wordNum, 64~127属于另一个wordNum
     int wordNum = index >> 6; // div 64
+
+    // 计算出当前文档号应该放到64个bit位(long类型)的哪一位
     long bitmask = 1L << index;
+
+    // bits[]是个long类型的数据22pe3   3w3wszzse44r44redrhn  byy t7890gt5tg5tgyyy6ujhop[
     bits[wordNum] |= bitmask;
   }
 
   @Override
   public boolean getAndSet(int index) {
     assert index >= 0 && index < numBits : "index=" + index + ", numBits=" + numBits;
+
     int wordNum = index >> 6; // div 64
+
     long bitmask = 1L << index;
+
     boolean val = (bits[wordNum] & bitmask) != 0;
+
     bits[wordNum] |= bitmask;
+
     return val;
   }
 
   @Override
   public void clear(int index) {
     assert index >= 0 && index < numBits : "index=" + index + ", numBits=" + numBits;
+
     int wordNum = index >> 6;
+
     long bitmask = 1L << index;
+
     bits[wordNum] &= ~bitmask;
   }
 
@@ -549,5 +578,23 @@ public final class FixedBitSet extends BitSet {
    */
   public Bits asReadOnlyBits() {
     return new FixedBits(bits, numBits);
+  }
+
+  public static void main(String[] args) {
+    FixedBitSet fixedBitSet = new FixedBitSet(300);
+
+    fixedBitSet.set(3);
+
+    fixedBitSet.set(67);
+
+    fixedBitSet.set(70);
+
+    fixedBitSet.set(179);
+
+    fixedBitSet.set(195);
+
+    fixedBitSet.set(313);
+
+    System.out.println(fixedBitSet.get(70));
   }
 }

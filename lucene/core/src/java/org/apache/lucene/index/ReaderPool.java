@@ -46,13 +46,21 @@ import org.apache.lucene.util.InfoStream;
 final class ReaderPool implements Closeable {
 
   private final Map<SegmentCommitInfo, ReadersAndUpdates> readerMap = new HashMap<>();
+
   private final Directory directory;
+
   private final Directory originalDirectory;
+
   private final FieldInfos.FieldNumbers fieldNumbers;
+
   private final LongSupplier completedDelGenSupplier;
+
   private final InfoStream infoStream;
+
   private final SegmentInfos segmentInfos;
+
   private final String softDeletesField;
+
   // This is a "write once" variable (like the organic dye
   // on a DVD-R that may or may not be heated by a laser and
   // then cooled to permanently record the event): it's
@@ -66,6 +74,7 @@ final class ReaderPool implements Closeable {
   // in practice this should be called once the readers are likely
   // to be needed and reused ie if IndexWriter#getReader is called.
   private volatile boolean poolReaders;
+
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
   ReaderPool(
@@ -79,12 +88,19 @@ final class ReaderPool implements Closeable {
       StandardDirectoryReader reader)
       throws IOException {
     this.directory = directory;
+
     this.originalDirectory = originalDirectory;
+
     this.segmentInfos = segmentInfos;
+
     this.fieldNumbers = fieldNumbers;
+
     this.completedDelGenSupplier = completedDelGenSupplier;
+
     this.infoStream = infoStream;
+
     this.softDeletesField = softDeletesField;
+
     if (reader != null) {
       // Pre-enroll all segment readers into the reader pool; this is necessary so
       // any in-memory NRT live docs are correctly carried over, and so NRT readers
@@ -93,7 +109,9 @@ final class ReaderPool implements Closeable {
       assert segmentInfos.size() == leaves.size();
       for (int i = 0; i < leaves.size(); i++) {
         LeafReaderContext leaf = leaves.get(i);
+
         SegmentReader segReader = (SegmentReader) leaf.reader();
+
         SegmentReader newReader =
             new SegmentReader(
                 segmentInfos.info(i),
@@ -102,6 +120,7 @@ final class ReaderPool implements Closeable {
                 segReader.getHardLiveDocs(),
                 segReader.numDocs(),
                 true);
+
         readerMap.put(
             newReader.getOriginalSegmentInfo(),
             new ReadersAndUpdates(
@@ -211,10 +230,12 @@ final class ReaderPool implements Closeable {
           // did was move the state to disk:
           changed = true;
         }
+
         if (rld.writeFieldUpdates(
             directory, fieldNumbers, completedDelGenSupplier.getAsLong(), infoStream)) {
           changed = true;
         }
+
         if (rld.getNumDVUpdates() == 0) {
           rld.dropReaders();
           readerMap.remove(rld.info);
@@ -281,6 +302,7 @@ final class ReaderPool implements Closeable {
   synchronized List<ReadersAndUpdates> getReadersByRam() {
     class RamRecordingHolder {
       final ReadersAndUpdates updates;
+
       final long ramBytesUsed;
 
       RamRecordingHolder(ReadersAndUpdates updates) {
@@ -288,12 +310,16 @@ final class ReaderPool implements Closeable {
         this.ramBytesUsed = updates.ramBytesUsed.get();
       }
     }
+
     final ArrayList<RamRecordingHolder> readersByRam;
+
     synchronized (this) {
       if (readerMap.isEmpty()) {
         return Collections.emptyList();
       }
+
       readersByRam = new ArrayList<>(readerMap.size());
+
       for (ReadersAndUpdates rld : readerMap.values()) {
         // we have to record the ram usage once and then sort
         // since the ram usage can change concurrently and that will confuse the sort or hit an
@@ -304,8 +330,10 @@ final class ReaderPool implements Closeable {
         readersByRam.add(new RamRecordingHolder(rld));
       }
     }
+
     // Sort this outside of the lock by largest ramBytesUsed:
     CollectionUtil.introSort(readersByRam, (a, b) -> Long.compare(b.ramBytesUsed, a.ramBytesUsed));
+
     return Collections.unmodifiableList(
         readersByRam.stream().map(h -> h.updates).collect(Collectors.toList()));
   }
@@ -348,10 +376,14 @@ final class ReaderPool implements Closeable {
   synchronized boolean commit(SegmentInfos infos) throws IOException {
     boolean atLeastOneChange = false;
     for (SegmentCommitInfo info : infos) {
+
       final ReadersAndUpdates rld = readerMap.get(info);
+
       if (rld != null) {
         assert rld.info == info;
+
         boolean changed = rld.writeLiveDocs(directory);
+
         changed |=
             rld.writeFieldUpdates(
                 directory, fieldNumbers, completedDelGenSupplier.getAsLong(), infoStream);
@@ -395,19 +427,23 @@ final class ReaderPool implements Closeable {
   synchronized ReadersAndUpdates get(SegmentCommitInfo info, boolean create) {
     assert info.info.dir == originalDirectory
         : "info.dir=" + info.info.dir + " vs " + originalDirectory;
+
     if (closed.get()) {
       assert readerMap.isEmpty() : "Reader map is not empty: " + readerMap;
       throw new AlreadyClosedException("ReaderPool is already closed");
     }
 
     ReadersAndUpdates rld = readerMap.get(info);
+
     if (rld == null) {
       if (create == false) {
         return null;
       }
+
       rld =
           new ReadersAndUpdates(
               segmentInfos.getIndexCreatedVersionMajor(), info, newPendingDeletes(info));
+
       // Steal initial reference:
       readerMap.put(info, rld);
     } else {

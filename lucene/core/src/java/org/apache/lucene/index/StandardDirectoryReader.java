@@ -39,8 +39,11 @@ import org.apache.lucene.util.Version;
 public final class StandardDirectoryReader extends DirectoryReader {
 
   final IndexWriter writer;
+
   final SegmentInfos segmentInfos;
+
   private final boolean applyAllDeletes;
+
   private final boolean writeAllDeletes;
 
   /** package private constructor, called only from static open() methods. */
@@ -54,9 +57,13 @@ public final class StandardDirectoryReader extends DirectoryReader {
       boolean writeAllDeletes)
       throws IOException {
     super(directory, readers, leafSorter);
+
     this.writer = writer;
+
     this.segmentInfos = sis;
+
     this.applyAllDeletes = applyAllDeletes;
+
     this.writeAllDeletes = writeAllDeletes;
   }
 
@@ -83,19 +90,26 @@ public final class StandardDirectoryReader extends DirectoryReader {
                   + " but was: "
                   + minSupportedMajorVersion);
         }
+
+        //读取所有的SegmentInfo文件
         SegmentInfos sis =
             SegmentInfos.readCommit(directory, segmentFileName, minSupportedMajorVersion);
+
         final SegmentReader[] readers = new SegmentReader[sis.size()];
+
+        //遍历初始化SegmentReader
         boolean success = false;
         try {
           for (int i = sis.size() - 1; i >= 0; i--) {
             readers[i] =
                 new SegmentReader(sis.info(i), sis.getIndexCreatedVersionMajor(), IOContext.READ);
           }
+
           // This may throw CorruptIndexException if there are too many docs, so
           // it must be inside try clause so we close readers in that case:
           DirectoryReader reader =
               new StandardDirectoryReader(directory, readers, null, sis, leafSorter, false, false);
+
           success = true;
 
           return reader;
@@ -122,9 +136,11 @@ public final class StandardDirectoryReader extends DirectoryReader {
     final int numSegments = infos.size();
 
     final List<SegmentReader> readers = new ArrayList<>(numSegments);
+
     final Directory dir = writer.getDirectory();
 
     final SegmentInfos segmentInfos = infos.clone();
+
     int infosUpto = 0;
     try {
       for (int i = 0; i < numSegments; i++) {
@@ -190,16 +206,19 @@ public final class StandardDirectoryReader extends DirectoryReader {
       // create a Map SegmentName->SegmentReader
       for (int i = 0, c = oldReaders.size(); i < c; i++) {
         final SegmentReader sr = (SegmentReader) oldReaders.get(i);
+
         segmentReaders.put(sr.getSegmentName(), Integer.valueOf(i));
       }
     }
 
     SegmentReader[] newReaders = new SegmentReader[infos.size()];
+
     for (int i = infos.size() - 1; i >= 0; i--) {
       SegmentCommitInfo commitInfo = infos.info(i);
 
       // find SegmentReader for this segment
       Integer oldReaderIndex = segmentReaders.get(commitInfo.info.name);
+
       SegmentReader oldReader;
       if (oldReaderIndex == null) {
         // this is a new segment, no old SegmentReader can be reused
@@ -221,14 +240,17 @@ public final class StandardDirectoryReader extends DirectoryReader {
       }
 
       boolean success = false;
+
       try {
         SegmentReader newReader;
+
         if (oldReader == null
             || commitInfo.info.getUseCompoundFile()
                 != oldReader.getSegmentInfo().info.getUseCompoundFile()) {
           // this is a new reader; in case we hit an exception we can decRef it safely
           newReader =
               new SegmentReader(commitInfo, infos.getIndexCreatedVersionMajor(), IOContext.READ);
+
           newReaders[i] = newReader;
         } else {
           if (oldReader.isNRT) {
@@ -256,6 +278,7 @@ public final class StandardDirectoryReader extends DirectoryReader {
               // the old and the new one, so we must incRef
               // it:
               oldReader.incRef();
+
               newReaders[i] = oldReader;
             } else {
               // Steal the ref returned by SegmentReader ctor:
@@ -281,6 +304,7 @@ public final class StandardDirectoryReader extends DirectoryReader {
                             .liveDocsFormat()
                             .readLiveDocs(commitInfo.info.dir, commitInfo, IOContext.READONCE)
                         : null;
+
                 newReaders[i] =
                     new SegmentReader(
                         commitInfo,
@@ -412,6 +436,7 @@ public final class StandardDirectoryReader extends DirectoryReader {
       @Override
       protected DirectoryReader doBody(String segmentFileName) throws IOException {
         final SegmentInfos infos = SegmentInfos.readCommit(directory, segmentFileName);
+
         return doOpenIfChanged(infos);
       }
     }.run(commit);

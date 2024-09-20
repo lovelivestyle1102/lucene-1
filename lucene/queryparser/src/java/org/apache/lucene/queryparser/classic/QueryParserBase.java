@@ -64,21 +64,29 @@ public abstract class QueryParserBase extends QueryBuilder
   Operator operator = OR_OPERATOR;
 
   MultiTermQuery.RewriteMethod multiTermRewriteMethod = MultiTermQuery.CONSTANT_SCORE_REWRITE;
+
   boolean allowLeadingWildcard = false;
 
   protected String field;
+
   int phraseSlop = 0;
+
   float fuzzyMinSim = FuzzyQuery.defaultMaxEdits;
+
   int fuzzyPrefixLength = FuzzyQuery.defaultPrefixLength;
+
   Locale locale = Locale.getDefault();
+
   TimeZone timeZone = TimeZone.getDefault();
 
   // the default date resolution
   DateTools.Resolution dateResolution = null;
+
   // maps field names to date resolutions
   Map<String, DateTools.Resolution> fieldToDateResolution = null;
 
   boolean autoGeneratePhraseQueries;
+
   int determinizeWorkLimit = DEFAULT_DETERMINIZE_WORK_LIMIT;
 
   // So the generated QueryParser(CharStream) won't error out
@@ -94,7 +102,9 @@ public abstract class QueryParserBase extends QueryBuilder
    */
   public void init(String f, Analyzer a) {
     setAnalyzer(a);
+
     field = f;
+
     setAutoGeneratePhraseQueries(false);
   }
 
@@ -114,6 +124,7 @@ public abstract class QueryParserBase extends QueryBuilder
     try {
       // TopLevelQuery is a Query followed by the end-of-input (EOF)
       Query res = TopLevelQuery(field);
+
       return res != null ? res : newBooleanQuery().build();
     } catch (ParseException | TokenMgrError tme) {
       // rethrow to include the original query:
@@ -605,6 +616,7 @@ public abstract class QueryParserBase extends QueryBuilder
         new TermRangeQuery(field, start, end, startInclusive, endInclusive);
 
     query.setRewriteMethod(multiTermRewriteMethod);
+
     return query;
   }
 

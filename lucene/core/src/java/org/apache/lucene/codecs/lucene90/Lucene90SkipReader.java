@@ -50,15 +50,23 @@ import org.apache.lucene.store.IndexInput;
  */
 class Lucene90SkipReader extends MultiLevelSkipListReader {
   private long[] docPointer;
+
   private long[] posPointer;
+
   private long[] payPointer;
+
   private int[] posBufferUpto;
+
   private int[] payloadByteUpto;
 
   private long lastPosPointer;
+
   private long lastPayPointer;
+
   private int lastPayloadByteUpto;
+
   private long lastDocPointer;
+
   private int lastPosBufferUpto;
 
   public Lucene90SkipReader(
@@ -102,13 +110,18 @@ class Lucene90SkipReader extends MultiLevelSkipListReader {
       long skipPointer, long docBasePointer, long posBasePointer, long payBasePointer, int df)
       throws IOException {
     super.init(skipPointer, trim(df));
+
     lastDocPointer = docBasePointer;
+
     lastPosPointer = posBasePointer;
+
     lastPayPointer = payBasePointer;
 
     Arrays.fill(docPointer, docBasePointer);
+
     if (posPointer != null) {
       Arrays.fill(posPointer, posBasePointer);
+
       if (payPointer != null) {
         Arrays.fill(payPointer, payBasePointer);
       }
@@ -148,13 +161,18 @@ class Lucene90SkipReader extends MultiLevelSkipListReader {
   @Override
   protected void seekChild(int level) throws IOException {
     super.seekChild(level);
+
     docPointer[level] = lastDocPointer;
+
     if (posPointer != null) {
       posPointer[level] = lastPosPointer;
+
       posBufferUpto[level] = lastPosBufferUpto;
+
       if (payloadByteUpto != null) {
         payloadByteUpto[level] = lastPayloadByteUpto;
       }
+
       if (payPointer != null) {
         payPointer[level] = lastPayPointer;
       }
@@ -164,14 +182,18 @@ class Lucene90SkipReader extends MultiLevelSkipListReader {
   @Override
   protected void setLastSkipData(int level) {
     super.setLastSkipData(level);
+
     lastDocPointer = docPointer[level];
 
     if (posPointer != null) {
       lastPosPointer = posPointer[level];
+
       lastPosBufferUpto = posBufferUpto[level];
+
       if (payPointer != null) {
         lastPayPointer = payPointer[level];
       }
+
       if (payloadByteUpto != null) {
         lastPayloadByteUpto = payloadByteUpto[level];
       }
@@ -181,10 +203,12 @@ class Lucene90SkipReader extends MultiLevelSkipListReader {
   @Override
   protected int readSkipData(int level, IndexInput skipStream) throws IOException {
     int delta = skipStream.readVInt();
+
     docPointer[level] += skipStream.readVLong();
 
     if (posPointer != null) {
       posPointer[level] += skipStream.readVLong();
+
       posBufferUpto[level] = skipStream.readVInt();
 
       if (payloadByteUpto != null) {
@@ -195,6 +219,7 @@ class Lucene90SkipReader extends MultiLevelSkipListReader {
         payPointer[level] += skipStream.readVLong();
       }
     }
+
     readImpacts(level, skipStream);
     return delta;
   }

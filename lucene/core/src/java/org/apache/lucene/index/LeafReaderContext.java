@@ -23,10 +23,12 @@ import java.util.List;
 public final class LeafReaderContext extends IndexReaderContext {
   /** The reader's ord in the top-level's leaves array */
   public final int ord;
+
   /** The reader's absolute doc base */
   public final int docBase;
 
   private final LeafReader reader;
+
   private final List<LeafReaderContext> leaves;
 
   /** Creates a new {@link LeafReaderContext} */
@@ -53,7 +55,9 @@ public final class LeafReaderContext extends IndexReaderContext {
     if (!isTopLevel) {
       throw new UnsupportedOperationException("This is not a top-level context.");
     }
+
     assert leaves != null;
+
     return leaves;
   }
 

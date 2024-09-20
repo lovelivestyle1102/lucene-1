@@ -77,9 +77,11 @@ final class PForUtil {
     }
 
     final int maxBitsRequired = PackedInts.bitsRequired(max);
+
     // We store the patch on a byte, so we can't decrease the number of bits required by more than 8
     final int patchedBitsRequired =
         Math.max(PackedInts.bitsRequired(topValue), maxBitsRequired - 8);
+
     int numExceptions = 0;
     final long maxUnpatchedValue = (1L << patchedBitsRequired) - 1;
     for (int i = 2; i <= top.size(); ++i) {
@@ -113,6 +115,7 @@ final class PForUtil {
       out.writeByte((byte) token);
       forUtil.encode(longs, patchedBitsRequired, out);
     }
+
     out.writeBytes(exceptions, exceptions.length);
   }
 

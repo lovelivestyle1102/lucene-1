@@ -44,10 +44,13 @@ import org.apache.lucene.util.hnsw.NeighborArray;
 public final class Lucene90HnswVectorsWriter extends KnnVectorsWriter {
 
   private final SegmentWriteState segmentWriteState;
+
   private final IndexOutput meta, vectorData, vectorIndex;
 
   private final int maxConn;
+
   private final int beamWidth;
+
   private boolean finished;
 
   Lucene90HnswVectorsWriter(SegmentWriteState state, int maxConn, int beamWidth)

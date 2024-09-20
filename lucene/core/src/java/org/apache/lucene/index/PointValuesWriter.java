@@ -29,22 +29,40 @@ import org.apache.lucene.util.PagedBytes;
 /** Buffers up pending byte[][] value(s) per doc, then flushes when segment flushes. */
 class PointValuesWriter {
   private final FieldInfo fieldInfo;
+
+  //
   private final PagedBytes bytes;
+
   private final DataOutput bytesOut;
+
   private final Counter iwBytesUsed;
+
+  //每添加一条点数据，会将该点数据所属文档号作为数组元素添加到docIds数组中，并且数组下标为该点数据对应的numPoints
   private int[] docIDs;
+
+  //int类型，是一个从0开始递增的值，可以理解为是每一个点数据的一个唯一编号，并且通过这个编号能映射出该点数据属于哪一个文档，由于是每一个点数据的唯一编号，所以该值还可以用来统计某个域的点数据的个数
   private int numPoints;
+
+  //包含它的文档数量
   private int numDocs;
+
   private int lastDocID = -1;
+
   private final int packedBytesLength;
 
   PointValuesWriter(Counter bytesUsed, FieldInfo fieldInfo) {
     this.fieldInfo = fieldInfo;
+
     this.iwBytesUsed = bytesUsed;
+
     this.bytes = new PagedBytes(12);
+
     bytesOut = bytes.getDataOutput();
+
     docIDs = new int[16];
+
     iwBytesUsed.addAndGet(16 * Integer.BYTES);
+
     packedBytesLength = fieldInfo.getPointDimensionCount() * fieldInfo.getPointNumBytes();
   }
 
@@ -54,6 +72,7 @@ class PointValuesWriter {
       throw new IllegalArgumentException(
           "field=" + fieldInfo.name + ": point value must not be null");
     }
+
     if (value.length != packedBytesLength) {
       throw new IllegalArgumentException(
           "field="
@@ -66,14 +85,21 @@ class PointValuesWriter {
 
     if (docIDs.length == numPoints) {
       docIDs = ArrayUtil.grow(docIDs, numPoints + 1);
+
       iwBytesUsed.addAndGet((docIDs.length - numPoints) * Integer.BYTES);
     }
+
     final long bytesRamBytesUsedBefore = bytes.ramBytesUsed();
+
     bytesOut.writeBytes(value.bytes, value.offset, value.length);
+
     iwBytesUsed.addAndGet(bytes.ramBytesUsed() - bytesRamBytesUsedBefore);
+
     docIDs[numPoints] = docID;
+
     if (docID != lastDocID) {
       numDocs++;
+
       lastDocID = docID;
     }
 
@@ -225,10 +251,12 @@ class PointValuesWriter {
   static final class MutableSortingPointValues extends MutablePointValues {
 
     private final MutablePointValues in;
+
     private final Sorter.DocMap docMap;
 
     public MutableSortingPointValues(final MutablePointValues in, Sorter.DocMap docMap) {
       this.in = in;
+
       this.docMap = docMap;
     }
 

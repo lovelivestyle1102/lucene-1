@@ -31,9 +31,13 @@ import org.apache.lucene.util.PriorityQueue;
 final class BooleanScorer extends BulkScorer {
 
   static final int SHIFT = 11;
+
   static final int SIZE = 1 << SHIFT;
+
   static final int MASK = SIZE - 1;
+
   static final int SET_SIZE = 1 << (SHIFT - 6);
+
   static final int SET_MASK = SET_SIZE - 1;
 
   static class Bucket {
@@ -43,7 +47,9 @@ final class BooleanScorer extends BulkScorer {
 
   private class BulkScorerAndDoc {
     final BulkScorer scorer;
+
     final long cost;
+
     int next;
 
     BulkScorerAndDoc(BulkScorer scorer) {
@@ -70,9 +76,11 @@ final class BooleanScorer extends BulkScorer {
             return a.cost() > b.cost();
           }
         };
+
     for (BulkScorer scorer : scorers) {
       pq.insertWithOverflow(scorer);
     }
+
     long cost = 0;
     for (BulkScorer scorer = pq.pop(); scorer != null; scorer = pq.pop()) {
       cost += scorer.cost();
@@ -110,6 +118,7 @@ final class BooleanScorer extends BulkScorer {
   }
 
   final Bucket[] buckets = new Bucket[SIZE];
+
   // This is basically an inlined FixedBitSet... seems to help with bound checks
   final long[] matching = new long[SET_SIZE];
 
@@ -131,10 +140,15 @@ final class BooleanScorer extends BulkScorer {
     @Override
     public void collect(int doc) throws IOException {
       final int i = doc & MASK;
+
       final int idx = i >>> 6;
+
       matching[idx] |= 1L << i;
+
       final Bucket bucket = buckets[i];
+
       bucket.freq++;
+
       bucket.score += scorer.score();
     }
   }
@@ -182,14 +196,21 @@ final class BooleanScorer extends BulkScorer {
 
   private void scoreDocument(LeafCollector collector, int base, int i) throws IOException {
     final ScoreAndDoc scoreAndDoc = this.scoreAndDoc;
+
     final Bucket bucket = buckets[i];
+
     if (bucket.freq >= minShouldMatch) {
       scoreAndDoc.score = (float) bucket.score;
+
       final int doc = base | i;
+
       scoreAndDoc.doc = doc;
+
       collector.collect(doc);
     }
+
     bucket.freq = 0;
+
     bucket.score = 0;
   }
 
@@ -216,21 +237,31 @@ final class BooleanScorer extends BulkScorer {
       int numScorers)
       throws IOException {
     for (int i = 0; i < numScorers; ++i) {
+      //获取每个BulkScorerAndDoc进行检索
       final BulkScorerAndDoc scorer = scorers[i];
+
       assert scorer.next < max;
+
       scorer.score(orCollector, acceptDocs, min, max);
     }
 
+    //整理每个BulkScorerAndDoc检索结果
     scoreMatches(collector, base);
+
     Arrays.fill(matching, 0L);
   }
 
   private BulkScorerAndDoc advance(int min) throws IOException {
     assert tail.size() == minShouldMatch - 1;
+
     final HeadPriorityQueue head = this.head;
+
     final TailPriorityQueue tail = this.tail;
+
     BulkScorerAndDoc headTop = head.top();
+
     BulkScorerAndDoc tailTop = tail.top();
+
     while (headTop.next < min) {
       if (tailTop == null || headTop.cost <= tailTop.cost) {
         headTop.advance(min);
@@ -294,7 +325,9 @@ final class BooleanScorer extends BulkScorer {
       int max)
       throws IOException {
     assert tail.size() == 0;
+
     final int nextWindowBase = head.top().next & ~MASK;
+
     final int end = Math.max(windowMax, Math.min(max, nextWindowBase));
 
     bulkScorer.score(collector, acceptDocs, windowMin, end);
@@ -307,7 +340,9 @@ final class BooleanScorer extends BulkScorer {
       BulkScorerAndDoc top, LeafCollector collector, Bits acceptDocs, int min, int max)
       throws IOException {
     final int windowBase = top.next & ~MASK; // find the window that the next match belongs to
+
     final int windowMin = Math.max(min, windowBase);
+
     final int windowMax = Math.min(max, windowBase + SIZE);
 
     // Fill 'leads' with all scorers from 'head' that are in the right window
@@ -333,9 +368,12 @@ final class BooleanScorer extends BulkScorer {
   @Override
   public int score(LeafCollector collector, Bits acceptDocs, int min, int max) throws IOException {
     scoreAndDoc.doc = -1;
+
     collector.setScorer(scoreAndDoc);
 
     BulkScorerAndDoc top = advance(min);
+
+    //迭代匹配
     while (top.next < max) {
       top = scoreWindow(top, collector, acceptDocs, min, max);
     }

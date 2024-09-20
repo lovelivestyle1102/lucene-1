@@ -69,26 +69,37 @@ public final class Lucene90CompressingTermVectorsWriter extends TermVectorsWrite
   static final String VECTORS_INDEX_CODEC_NAME = "Lucene90TermVectorsIndex";
 
   static final int VERSION_START = 0;
+
   static final int VERSION_CURRENT = VERSION_START;
+
   static final int META_VERSION_START = 0;
 
   static final int PACKED_BLOCK_SIZE = 64;
 
   static final int POSITIONS = 0x01;
+
   static final int OFFSETS = 0x02;
+
   static final int PAYLOADS = 0x04;
+
   static final int FLAGS_BITS = DirectWriter.bitsRequired(POSITIONS | OFFSETS | PAYLOADS);
 
   private final String segment;
+
   private FieldsIndexWriter indexWriter;
+
   private IndexOutput metaStream, vectorsStream;
 
   private final CompressionMode compressionMode;
+
   private final Compressor compressor;
+
   private final int chunkSize;
 
   private long numChunks; // number of chunks
+
   private long numDirtyChunks; // number of incomplete compressed blocks written
+
   private long numDirtyDocs; // cumulative number of docs in incomplete chunks
 
   /** a pending doc */
@@ -128,23 +139,32 @@ public final class Lucene90CompressingTermVectorsWriter extends TermVectorsWrite
 
   private DocData addDocData(int numVectorFields) {
     FieldData last = null;
+
     for (Iterator<DocData> it = pendingDocs.descendingIterator(); it.hasNext(); ) {
       final DocData doc = it.next();
+
       if (!doc.fields.isEmpty()) {
         last = doc.fields.getLast();
         break;
       }
     }
+
     final DocData doc;
+
     if (last == null) {
       doc = new DocData(numVectorFields, 0, 0, 0);
     } else {
       final int posStart = last.posStart + (last.hasPositions ? last.totalPositions : 0);
+
       final int offStart = last.offStart + (last.hasOffsets ? last.totalPositions : 0);
+
       final int payStart = last.payStart + (last.hasPayloads ? last.totalPositions : 0);
+
       doc = new DocData(numVectorFields, posStart, offStart, payStart);
     }
+
     pendingDocs.add(doc);
+
     return doc;
   }
 
@@ -217,15 +237,25 @@ public final class Lucene90CompressingTermVectorsWriter extends TermVectorsWrite
   }
 
   private int numDocs; // total number of docs seen
+
   private final Deque<DocData> pendingDocs; // pending docs
+
   private DocData curDoc; // current document
+
   private FieldData curField; // current field
+
   private final BytesRef lastTerm;
+
   private int[] positionsBuf, startOffsetsBuf, lengthsBuf, payloadLengthsBuf;
+
   private final ByteBuffersDataOutput termSuffixes; // buffered term suffixes
+
   private final ByteBuffersDataOutput payloadBytes; // buffered term payloads
+
   private final BlockPackedWriter writer;
+
   private final int maxDocsPerChunk; // hard limit on number of docs per chunk
+
   private final ByteBuffersDataOutput scratchBuffer = ByteBuffersDataOutput.newResettableInstance();
 
   /** Sole constructor. */
@@ -271,6 +301,7 @@ public final class Lucene90CompressingTermVectorsWriter extends TermVectorsWrite
       vectorsStream =
           directory.createOutput(
               IndexFileNames.segmentFileName(segment, segmentSuffix, VECTORS_EXTENSION), context);
+
       CodecUtil.writeIndexHeader(
           vectorsStream, formatName, VERSION_CURRENT, si.getId(), segmentSuffix);
       assert CodecUtil.indexHeaderLength(formatName, segmentSuffix)
@@ -337,6 +368,7 @@ public final class Lucene90CompressingTermVectorsWriter extends TermVectorsWrite
       FieldInfo info, int numTerms, boolean positions, boolean offsets, boolean payloads)
       throws IOException {
     curField = curDoc.addField(info.number, numTerms, positions, offsets, payloads);
+
     lastTerm.length = 0;
   }
 
@@ -383,19 +415,27 @@ public final class Lucene90CompressingTermVectorsWriter extends TermVectorsWrite
 
   private void flush(boolean force) throws IOException {
     assert force != triggerFlush();
+
     final int chunkDocs = pendingDocs.size();
+
     assert chunkDocs > 0 : chunkDocs;
+
     numChunks++;
+
     if (force) {
       numDirtyChunks++; // incomplete: we had to force this flush
       numDirtyDocs += pendingDocs.size();
     }
+
     // write the index file
     indexWriter.writeIndex(chunkDocs, vectorsStream.getFilePointer());
 
     final int docBase = numDocs - chunkDocs;
+
     vectorsStream.writeVInt(docBase);
+
     final int dirtyBit = force ? 1 : 0;
+
     vectorsStream.writeVInt((chunkDocs << 1) | dirtyBit);
 
     // total number of fields of the chunk
@@ -404,20 +444,28 @@ public final class Lucene90CompressingTermVectorsWriter extends TermVectorsWrite
     if (totalFields > 0) {
       // unique field numbers (sorted)
       final int[] fieldNums = flushFieldNums();
+
       // offsets in the array of unique field numbers
       flushFields(totalFields, fieldNums);
+
       // flags (does the field have positions, offsets, payloads?)
       flushFlags(totalFields, fieldNums);
+
       // number of terms of each field
       flushNumTerms(totalFields);
+
       // prefix and suffix lengths for each field
       flushTermLengths();
+
       // term freqs - 1 (because termFreq is always >=1) for each term
       flushTermFreqs();
+
       // positions for all terms, when enabled
       flushPositions();
+
       // offsets for all terms, when enabled
       flushOffsets(fieldNums);
+
       // payload lengths for all terms, when enabled
       flushPayloadLengths();
 
@@ -426,6 +474,7 @@ public final class Lucene90CompressingTermVectorsWriter extends TermVectorsWrite
       // TODO: We could compress in the slices we already have in the buffer (min/max slice
       // can be set on the buffer itself).
       byte[] content = termSuffixes.toArrayCopy();
+
       compressor.compress(content, 0, content.length, vectorsStream);
     }
 

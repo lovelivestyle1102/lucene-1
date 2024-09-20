@@ -134,6 +134,7 @@ public final class Lucene90FieldInfosFormat extends FieldInfosFormat {
             segmentSuffix);
 
         final int size = input.readVInt(); // read in the size
+
         infos = new FieldInfo[size];
 
         // previous field's attribute map, we share when possible:
@@ -314,6 +315,7 @@ public final class Lucene90FieldInfosFormat extends FieldInfosFormat {
       throws IOException {
     final String fileName =
         IndexFileNames.segmentFileName(segmentInfo.name, segmentSuffix, EXTENSION);
+
     try (IndexOutput output = directory.createOutput(fileName, context)) {
       CodecUtil.writeIndexHeader(
           output,
@@ -321,11 +323,14 @@ public final class Lucene90FieldInfosFormat extends FieldInfosFormat {
           Lucene90FieldInfosFormat.FORMAT_CURRENT,
           segmentInfo.getId(),
           segmentSuffix);
+
       output.writeVInt(infos.size());
+
       for (FieldInfo fi : infos) {
-        fi.checkConsistency();
+          fi.checkConsistency();
 
         output.writeString(fi.name);
+
         output.writeVInt(fi.number);
 
         byte bits = 0x0;
@@ -333,20 +338,27 @@ public final class Lucene90FieldInfosFormat extends FieldInfosFormat {
         if (fi.omitsNorms()) bits |= OMIT_NORMS;
         if (fi.hasPayloads()) bits |= STORE_PAYLOADS;
         if (fi.isSoftDeletesField()) bits |= SOFT_DELETES_FIELD;
+
         output.writeByte(bits);
 
         output.writeByte(indexOptionsByte(fi.getIndexOptions()));
 
         // pack the DV type and hasNorms in one byte
         output.writeByte(docValuesByte(fi.getDocValuesType()));
+
         output.writeLong(fi.getDocValuesGen());
+
         output.writeMapOfStrings(fi.attributes());
+
         output.writeVInt(fi.getPointDimensionCount());
+
         if (fi.getPointDimensionCount() != 0) {
           output.writeVInt(fi.getPointIndexDimensionCount());
           output.writeVInt(fi.getPointNumBytes());
         }
+
         output.writeVInt(fi.getVectorDimension());
+
         output.writeByte((byte) fi.getVectorSimilarityFunction().ordinal());
       }
       CodecUtil.writeFooter(output);
@@ -358,12 +370,17 @@ public final class Lucene90FieldInfosFormat extends FieldInfosFormat {
 
   // Codec header
   static final String CODEC_NAME = "Lucene90FieldInfos";
+
   static final int FORMAT_START = 0;
+
   static final int FORMAT_CURRENT = FORMAT_START;
 
   // Field flags
   static final byte STORE_TERMVECTOR = 0x1;
+
   static final byte OMIT_NORMS = 0x2;
+
   static final byte STORE_PAYLOADS = 0x4;
+
   static final byte SOFT_DELETES_FIELD = 0x8;
 }

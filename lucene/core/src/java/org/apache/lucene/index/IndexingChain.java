@@ -60,33 +60,46 @@ import org.apache.lucene.util.RamUsageEstimator;
 final class IndexingChain implements Accountable {
 
   final Counter bytesUsed = Counter.newCounter();
+
   final FieldInfos.Builder fieldInfos;
 
   // Writes postings and term vectors:
   final TermsHash termsHash;
+
   // Shared pool for doc-value terms
   final ByteBlockPool docValuesBytePool;
+
   // Writes stored fields
   final StoredFieldsConsumer storedFieldsConsumer;
+
   final TermVectorsConsumer termVectorsWriter;
 
   // NOTE: I tried using Hash Map<String,PerField>
   // but it was ~2% slower on Wiki and Geonames with Java
   // 1.7.0_25:
   private PerField[] fieldHash = new PerField[2];
+
   private int hashMask = 1;
 
   private int totalFieldCount;
+
   private long nextFieldGen;
 
   // Holds fields seen in each document
   private PerField[] fields = new PerField[1];
+
   private PerField[] docFields = new PerField[2];
+
   private final InfoStream infoStream;
+
   private final ByteBlockPool.Allocator byteBlockAllocator;
+
   private final LiveIndexWriterConfig indexWriterConfig;
+
   private final int indexCreatedVersionMajor;
+
   private final Consumer<Throwable> abortingExceptionConsumer;
+
   private boolean hasHitAbortingException;
 
   IndexingChain(
@@ -97,17 +110,25 @@ final class IndexingChain implements Accountable {
       LiveIndexWriterConfig indexWriterConfig,
       Consumer<Throwable> abortingExceptionConsumer) {
     this.indexCreatedVersionMajor = indexCreatedVersionMajor;
+
     byteBlockAllocator = new ByteBlockPool.DirectTrackingAllocator(bytesUsed);
+
     IntBlockPool.Allocator intBlockAllocator = new IntBlockAllocator(bytesUsed);
+
     this.indexWriterConfig = indexWriterConfig;
+
     assert segmentInfo.getIndexSort() == indexWriterConfig.getIndexSort();
+
     this.fieldInfos = fieldInfos;
+
     this.infoStream = indexWriterConfig.getInfoStream();
+
     this.abortingExceptionConsumer = abortingExceptionConsumer;
 
     if (segmentInfo.getIndexSort() == null) {
       storedFieldsConsumer =
           new StoredFieldsConsumer(indexWriterConfig.getCodec(), directory, segmentInfo);
+
       termVectorsWriter =
           new TermVectorsConsumer(
               intBlockAllocator,
@@ -118,6 +139,7 @@ final class IndexingChain implements Accountable {
     } else {
       storedFieldsConsumer =
           new SortingStoredFieldsConsumer(indexWriterConfig.getCodec(), directory, segmentInfo);
+
       termVectorsWriter =
           new SortingTermVectorsConsumer(
               intBlockAllocator,
@@ -126,9 +148,12 @@ final class IndexingChain implements Accountable {
               segmentInfo,
               indexWriterConfig.getCodec());
     }
+
+    //term分词相关
     termsHash =
         new FreqProxTermsWriter(
             intBlockAllocator, byteBlockAllocator, bytesUsed, termVectorsWriter);
+
     docValuesBytePool = new ByteBlockPool(byteBlockAllocator);
   }
 
@@ -216,15 +241,21 @@ final class IndexingChain implements Accountable {
     LeafReader docValuesReader = getDocValuesLeafReader();
 
     List<IndexSorter.DocComparator> comparators = new ArrayList<>();
+
     for (int i = 0; i < indexSort.getSort().length; i++) {
       SortField sortField = indexSort.getSort()[i];
+
       IndexSorter sorter = sortField.getIndexSorter();
+
       if (sorter == null) {
         throw new UnsupportedOperationException("Cannot sort index using sort field " + sortField);
       }
+
       comparators.add(sorter.getDocComparator(docValuesReader, state.segmentInfo.maxDoc()));
     }
+
     Sorter sorter = new Sorter(indexSort);
+
     // returns null if the documents are already sorted
     return sorter.sort(
         state.segmentInfo.maxDoc(), comparators.toArray(IndexSorter.DocComparator[]::new));
@@ -235,12 +266,18 @@ final class IndexingChain implements Accountable {
     // NOTE: caller (DocumentsWriterPerThread) handles
     // aborting on any exception from this method
     Sorter.DocMap sortMap = maybeSortSegment(state);
+
     int maxDoc = state.segmentInfo.maxDoc();
+
     long t0 = System.nanoTime();
+
+    // 生成nvm跟nvd文件
     writeNorms(state, sortMap);
+
     if (infoStream.isEnabled("IW")) {
       infoStream.message("IW", ((System.nanoTime() - t0) / 1000000) + " msec to write norms");
     }
+
     SegmentReadState readState =
         new SegmentReadState(
             state.directory,
@@ -250,40 +287,57 @@ final class IndexingChain implements Accountable {
             state.segmentSuffix);
 
     t0 = System.nanoTime();
+
+    // 生成dvd，dvm文件
     writeDocValues(state, sortMap);
+
     if (infoStream.isEnabled("IW")) {
       infoStream.message("IW", ((System.nanoTime() - t0) / 1000000) + " msec to write docValues");
     }
 
     t0 = System.nanoTime();
+
+    // 处理数值类型
     writePoints(state, sortMap);
+
     if (infoStream.isEnabled("IW")) {
       infoStream.message("IW", ((System.nanoTime() - t0) / 1000000) + " msec to write points");
     }
 
     t0 = System.nanoTime();
+
     writeVectors(state, sortMap);
+
     if (infoStream.isEnabled("IW")) {
       infoStream.message("IW", ((System.nanoTime() - t0) / 1000000) + " msec to write vectors");
     }
 
     // it's possible all docs hit non-aborting exceptions...
     t0 = System.nanoTime();
+
     storedFieldsConsumer.finish(maxDoc);
+
     storedFieldsConsumer.flush(state, sortMap);
+
     if (infoStream.isEnabled("IW")) {
       infoStream.message(
           "IW", ((System.nanoTime() - t0) / 1000000) + " msec to finish stored fields");
     }
 
     t0 = System.nanoTime();
+
+    //筛选出需要做flush的TermsHashPerField
     Map<String, TermsHashPerField> fieldsToFlush = new HashMap<>();
+
     for (int i = 0; i < fieldHash.length; i++) {
       PerField perField = fieldHash[i];
+
       while (perField != null) {
+        //invertState 代表有数据写入
         if (perField.invertState != null) {
           fieldsToFlush.put(perField.fieldInfo.name, perField.termsHashPerField);
         }
+
         perField = perField.next;
       }
     }
@@ -292,13 +346,16 @@ final class IndexingChain implements Accountable {
         readState.fieldInfos.hasNorms()
             ? state.segmentInfo.getCodec().normsFormat().normsProducer(readState)
             : null) {
+
       NormsProducer normsMergeInstance = null;
       if (norms != null) {
         // Use the merge instance in order to reuse the same IndexInput for all terms
         normsMergeInstance = norms.getMergeInstance();
       }
+
       termsHash.flush(fieldsToFlush, state, sortMap, normsMergeInstance);
     }
+
     if (infoStream.isEnabled("IW")) {
       infoStream.message(
           "IW",
@@ -310,10 +367,12 @@ final class IndexingChain implements Accountable {
     // FreqProxTermsWriter does this with
     // FieldInfo.storePayload.
     t0 = System.nanoTime();
+
     indexWriterConfig
         .getCodec()
         .fieldInfosFormat()
         .write(state.directory, state.segmentInfo, "", state.fieldInfos, IOContext.DEFAULT);
+
     if (infoStream.isEnabled("IW")) {
       infoStream.message("IW", ((System.nanoTime() - t0) / 1000000) + " msec to write fieldInfos");
     }
@@ -324,10 +383,13 @@ final class IndexingChain implements Accountable {
   /** Writes all buffered points. */
   private void writePoints(SegmentWriteState state, Sorter.DocMap sortMap) throws IOException {
     PointsWriter pointsWriter = null;
+
     boolean success = false;
+
     try {
       for (int i = 0; i < fieldHash.length; i++) {
         PerField perField = fieldHash[i];
+
         while (perField != null) {
           if (perField.pointValuesWriter != null) {
             // We could have initialized pointValuesWriter, but failed to write even a single doc
@@ -335,12 +397,14 @@ final class IndexingChain implements Accountable {
               if (pointsWriter == null) {
                 // lazy init
                 PointsFormat fmt = state.segmentInfo.getCodec().pointsFormat();
+
                 if (fmt == null) {
                   throw new IllegalStateException(
                       "field=\""
                           + perField.fieldInfo.name
                           + "\" was indexed as points but codec does not support points");
                 }
+
                 pointsWriter = fmt.fieldsWriter(state);
               }
               perField.pointValuesWriter.flush(state, sortMap, pointsWriter);
@@ -350,6 +414,7 @@ final class IndexingChain implements Accountable {
           perField = perField.next;
         }
       }
+
       if (pointsWriter != null) {
         pointsWriter.finish();
       }
@@ -366,10 +431,12 @@ final class IndexingChain implements Accountable {
   /** Writes all buffered doc values (called from {@link #flush}). */
   private void writeDocValues(SegmentWriteState state, Sorter.DocMap sortMap) throws IOException {
     DocValuesConsumer dvConsumer = null;
+
     boolean success = false;
     try {
       for (int i = 0; i < fieldHash.length; i++) {
         PerField perField = fieldHash[i];
+
         while (perField != null) {
           if (perField.docValuesWriter != null) {
             if (perField.fieldInfo.getDocValuesType() == DocValuesType.NONE) {
@@ -381,12 +448,16 @@ final class IndexingChain implements Accountable {
                       + perField.fieldInfo.name
                       + "\" has no docValues but wrote them");
             }
+
             if (dvConsumer == null) {
-              // lazy init
+              // lazy init Lucene90DocValuesFormat
               DocValuesFormat fmt = state.segmentInfo.getCodec().docValuesFormat();
+
               dvConsumer = fmt.fieldsConsumer(state);
             }
+
             perField.docValuesWriter.flush(state, sortMap, dvConsumer);
+
             perField.docValuesWriter = null;
           } else if (perField.fieldInfo != null
               && perField.fieldInfo.getDocValuesType() != DocValuesType.NONE) {
@@ -435,6 +506,7 @@ final class IndexingChain implements Accountable {
     try {
       for (int i = 0; i < fieldHash.length; i++) {
         PerField perField = fieldHash[i];
+
         while (perField != null) {
           if (perField.vectorValuesWriter != null) {
             if (perField.fieldInfo.getVectorDimension() == 0) {
@@ -449,16 +521,19 @@ final class IndexingChain implements Accountable {
             if (knnVectorsWriter == null) {
               // lazy init
               KnnVectorsFormat fmt = state.segmentInfo.getCodec().knnVectorsFormat();
+
               if (fmt == null) {
                 throw new IllegalStateException(
                     "field=\""
                         + perField.fieldInfo.name
                         + "\" was indexed as vectors but codec does not support vectors");
               }
+
               knnVectorsWriter = fmt.fieldsWriter(state);
             }
 
             perField.vectorValuesWriter.flush(sortMap, knnVectorsWriter);
+
             perField.vectorValuesWriter = null;
           } else if (perField.fieldInfo != null && perField.fieldInfo.getVectorDimension() != 0) {
             // BUG
@@ -491,18 +566,23 @@ final class IndexingChain implements Accountable {
     try {
       if (state.fieldInfos.hasNorms()) {
         NormsFormat normsFormat = state.segmentInfo.getCodec().normsFormat();
+
         assert normsFormat != null;
+
         normsConsumer = normsFormat.normsConsumer(state);
 
         for (FieldInfo fi : state.fieldInfos) {
           PerField perField = getPerField(fi.name);
+
           assert perField != null;
 
           // we must check the final value of omitNorms for the fieldinfo: it could have
           // changed for this field since the first time we added it.
           if (fi.omitsNorms() == false && fi.getIndexOptions() != IndexOptions.NONE) {
             assert perField.norms != null : "field=" + fi.name;
+
             perField.norms.finish(state.segmentInfo.maxDoc());
+
             perField.norms.flush(state, sortMap, normsConsumer);
           }
         }
@@ -529,24 +609,32 @@ final class IndexingChain implements Accountable {
 
   private void rehash() {
     int newHashSize = (fieldHash.length * 2);
+
     assert newHashSize > fieldHash.length;
 
     PerField[] newHashArray = new PerField[newHashSize];
 
     // Rehash
     int newHashMask = newHashSize - 1;
+
     for (int j = 0; j < fieldHash.length; j++) {
       PerField fp0 = fieldHash[j];
+
       while (fp0 != null) {
         final int hashPos2 = fp0.fieldName.hashCode() & newHashMask;
+
         PerField nextFP0 = fp0.next;
+
         fp0.next = newHashArray[hashPos2];
+
         newHashArray[hashPos2] = fp0;
+
         fp0 = nextFP0;
       }
     }
 
     fieldHash = newHashArray;
+
     hashMask = newHashMask;
   }
 
@@ -573,10 +661,14 @@ final class IndexingChain implements Accountable {
   void processDocument(int docID, Iterable<? extends IndexableField> document) throws IOException {
     // number of unique fields by names (collapses multiple field instances by the same name)
     int fieldCount = 0;
+
     int indexedFieldCount = 0; // number of unique fields indexed with postings
+
     long fieldGen = nextFieldGen++;
+
     int docFieldIdx = 0;
 
+    //FreqProxTermsWriter
     // NOTE: we need two passes here, in case there are
     // multi-valued fields, because we must process all
     // instances of a given field at once, since the
@@ -584,29 +676,48 @@ final class IndexingChain implements Accountable {
     // (i.e., we cannot have more than one TokenStream
     // running "at once"):
     termsHash.startDocument();
+
     startStoredFields(docID);
+
     try {
       // 1st pass over doc fields – verify that doc schema matches the index schema
       // build schema for each unique doc field
+      // 处理当前文档中的每一个域
       for (IndexableField field : document) {
-        IndexableFieldType fieldType = field.fieldType();
-        PerField pf = getOrAddPerField(field.name(), fieldType);
-        if (pf.fieldGen != fieldGen) { // first time we see this field in this document
-          fields[fieldCount++] = pf;
-          pf.fieldGen = fieldGen;
-          pf.reset(docID);
-        }
-        if (docFieldIdx >= docFields.length) oversizeDocFields();
-        docFields[docFieldIdx++] = pf;
-        updateDocFieldSchema(field.name(), pf.schema, fieldType);
+
+          //
+          IndexableFieldType fieldType = field.fieldType();
+
+          //PerField有很多关于写操作的配置，通常通过默认配置和mapping来决定具体设置
+          PerField pf = getOrAddPerField(field.name(), fieldType);
+
+          if (pf.fieldGen != fieldGen) { // first time we see this field in this document
+            fields[fieldCount++] = pf;
+
+            pf.fieldGen = fieldGen;
+
+            pf.reset(docID);
+          }
+
+          if (docFieldIdx >= docFields.length) oversizeDocFields();
+
+
+          docFields[docFieldIdx++] = pf;
+
+          updateDocFieldSchema(field.name(), pf.schema, fieldType);
       }
+
       // For each field, if it the first time we see this field in this segment,
       // initialize its FieldInfo.
       // If we have already seen this field, verify that its schema
       // within the current doc matches its schema in the index.
       for (int i = 0; i < fieldCount; i++) {
         PerField pf = fields[i];
+
+        //如果是第一次
         if (pf.fieldInfo == null) {
+
+          //初始化field信息以及对应Value的writer
           initializeFieldInfo(pf);
         } else {
           pf.schema.assertSameSchema(pf.fieldInfo);
@@ -616,20 +727,30 @@ final class IndexingChain implements Accountable {
       // 2nd pass over doc fields – index each field
       // also count the number of unique fields indexed with postings
       docFieldIdx = 0;
+
+      //对字段进行分词，索引
       for (IndexableField field : document) {
+
+        //对每个字段进行处理
         if (processField(docID, field, docFields[docFieldIdx])) {
           fields[indexedFieldCount] = docFields[docFieldIdx];
+
           indexedFieldCount++;
         }
+
         docFieldIdx++;
       }
     } finally {
       if (hasHitAbortingException == false) {
         // Finish each indexed field name seen in the document:
         for (int i = 0; i < indexedFieldCount; i++) {
+          // 处理存储域的norm
           fields[i].finish(docID);
         }
+
+        // 增量统计存储域的信息
         finishStoredFields();
+
         // TODO: for broken docs, optimize termsHash.finishDocument
         try {
           termsHash.finishDocument(docID);
@@ -637,6 +758,7 @@ final class IndexingChain implements Accountable {
           // Must abort, on the possibility that on-disk term
           // vectors are now corrupt:
           abortingExceptionConsumer.accept(th);
+
           throw th;
         }
       }
@@ -661,10 +783,13 @@ final class IndexingChain implements Accountable {
     // If the field already exists in globalFieldNumbers (i.e. field present in other segments),
     // we check consistency of its schema with schema for the whole index.
     FieldSchema s = pf.schema;
+
     if (indexWriterConfig.getIndexSort() != null && s.docValuesType != DocValuesType.NONE) {
       final Sort indexSort = indexWriterConfig.getIndexSort();
+
       validateIndexSortDVType(indexSort, pf.fieldName, s.docValuesType);
     }
+
     FieldInfo fi =
         fieldInfos.add(
             new FieldInfo(
@@ -684,11 +809,18 @@ final class IndexingChain implements Accountable {
                 s.vectorDimension,
                 s.vectorSimilarityFunction,
                 pf.fieldName.equals(fieldInfos.getSoftDeletesFieldName())));
+
     pf.setFieldInfo(fi);
+
+    //字段需要分词情况，则需要特殊初始
     if (fi.getIndexOptions() != IndexOptions.NONE) {
       pf.setInvertState();
     }
+
+    //根据不同字段类型，初始化不同的writer
     DocValuesType dvType = fi.getDocValuesType();
+
+    //初始化各种value写操作对象
     switch (dvType) {
       case NONE:
         break;
@@ -710,9 +842,11 @@ final class IndexingChain implements Accountable {
       default:
         throw new AssertionError("unrecognized DocValues.Type: " + dvType);
     }
+
     if (fi.getPointDimensionCount() != 0) {
       pf.pointValuesWriter = new PointValuesWriter(bytesUsed, fi);
     }
+
     if (fi.getVectorDimension() != 0) {
       pf.vectorValuesWriter = new VectorValuesWriter(fi, bytesUsed);
     }
@@ -721,13 +855,19 @@ final class IndexingChain implements Accountable {
   /** Index each field Returns {@code true}, if we are indexing a unique field with postings */
   private boolean processField(int docID, IndexableField field, PerField pf) throws IOException {
     IndexableFieldType fieldType = field.fieldType();
+
     boolean indexedField = false;
 
     // Invert indexed fields
+    // 获得term的存储选项，描述term的是否存储词频 偏移，位置等信息
     if (fieldType.indexOptions() != IndexOptions.NONE) {
       if (pf.first) { // first time we see this field in this doc
+        //对字段值进行处理，分词就是在这步来进行的
+        //创建倒排索引
         pf.invert(docID, field, true);
+
         pf.first = false;
+
         indexedField = true;
       } else {
         pf.invert(docID, field, false);
@@ -735,8 +875,10 @@ final class IndexingChain implements Accountable {
     }
 
     // Add stored fields
+    //对需要存储的字段处理
     if (fieldType.stored()) {
       String value = field.stringValue();
+
       if (value != null && value.length() > IndexWriter.MAX_STORED_STRING_LENGTH) {
         throw new IllegalArgumentException(
             "stored field \""
@@ -745,7 +887,11 @@ final class IndexingChain implements Accountable {
                 + value.length()
                 + " characters) to store");
       }
+
       try {
+
+        //将field属性相关信息存储到ByteBuffersDataOutput bufferedDocs内存中
+        //存储的格式为：field元信息(field类型)+值 field元信息+值,类似行存储。
         storedFieldsConsumer.writeField(pf.fieldInfo, field);
       } catch (Throwable th) {
         onAbortingException(th);
@@ -754,15 +900,21 @@ final class IndexingChain implements Accountable {
     }
 
     DocValuesType dvType = fieldType.docValuesType();
+
+    //field值的存储 保存docId 和 value的映射关系
+    //列式存储,存储的为value到docId的映射，这种结果有利于做统计分析
     if (dvType != DocValuesType.NONE) {
       indexDocValue(docID, pf, dvType, field);
     }
+
     if (fieldType.pointDimensionCount() != 0) {
       pf.pointValuesWriter.addPackedValue(docID, field.binaryValue());
     }
+
     if (fieldType.vectorDimension() != 0) {
       pf.vectorValuesWriter.addValue(docID, ((KnnVectorField) field).vectorValue());
     }
+
     return indexedField;
   }
 
@@ -771,14 +923,25 @@ final class IndexingChain implements Accountable {
    * FieldType}, and creates a new {@link PerField} if this field name wasn't seen yet.
    */
   private PerField getOrAddPerField(String fieldName, IndexableFieldType fieldType) {
+    //类似hashMap的处理，只不过先计算hash然后再线性探索方式查找对应的PerField
     final int hashPos = fieldName.hashCode() & hashMask;
+
     PerField pf = fieldHash[hashPos];
+
     while (pf != null && pf.fieldName.equals(fieldName) == false) {
       pf = pf.next;
     }
+
+
+    /**
+     * 有俩种情况为空：
+     * 1 fieldHash[hashPos] 未找到
+     * 2 fieldHash[hashPos] 找到，但是线索探测没有找到
+     */
     if (pf == null) {
       // first time we encounter field with this name in this segment
       FieldSchema schema = new FieldSchema(fieldName);
+
       pf =
           new PerField(
               fieldName,
@@ -786,19 +949,29 @@ final class IndexingChain implements Accountable {
               schema,
               indexWriterConfig.getSimilarity(),
               indexWriterConfig.getInfoStream(),
+              //分词器设置
               indexWriterConfig.getAnalyzer());
+
+      //此处兼容了俩种情况，将原先的作为当前节点的后继而新节点作为hash表的节点
       pf.next = fieldHash[hashPos];
+
+      //重新复制
       fieldHash[hashPos] = pf;
+
       totalFieldCount++;
+
       // At most 50% load factor:
       if (totalFieldCount >= fieldHash.length / 2) {
         rehash();
       }
+
       if (totalFieldCount > fields.length) {
         PerField[] newFields =
             new PerField
                 [ArrayUtil.oversize(totalFieldCount, RamUsageEstimator.NUM_BYTES_OBJECT_REF)];
+
         System.arraycopy(fields, 0, newFields, 0, fields.length);
+
         fields = newFields;
       }
     }
@@ -815,18 +988,22 @@ final class IndexingChain implements Accountable {
       // TODO: should this be checked when a fieldType is created?
       verifyUnIndexedFieldType(fieldName, fieldType);
     }
+
     if (fieldType.docValuesType() != DocValuesType.NONE) {
       schema.setDocValues(fieldType.docValuesType());
     }
+
     if (fieldType.pointDimensionCount() != 0) {
       schema.setPoints(
           fieldType.pointDimensionCount(),
           fieldType.pointIndexDimensionCount(),
           fieldType.pointNumBytes());
     }
+
     if (fieldType.vectorDimension() != 0) {
       schema.setVectors(fieldType.vectorSimilarityFunction(), fieldType.vectorDimension());
     }
+
     if (fieldType.getAttributes() != null && fieldType.getAttributes().isEmpty() == false) {
       schema.updateAttributes(fieldType.getAttributes());
     }
@@ -867,9 +1044,11 @@ final class IndexingChain implements Accountable {
       throws IOException {
     for (SortField sortField : indexSort.getSort()) {
       IndexSorter sorter = sortField.getIndexSorter();
+
       if (sorter == null) {
         throw new IllegalStateException("Cannot sort index with sort order " + sortField);
       }
+
       sorter.getDocComparator(
           new DocValuesLeafReader() {
             @Override
@@ -1017,12 +1196,18 @@ final class IndexingChain implements Accountable {
   /** NOTE: not static: accesses at least docState, termsHash. */
   private final class PerField implements Comparable<PerField> {
     final String fieldName;
+
     final int indexCreatedVersionMajor;
+
     final FieldSchema schema;
+
     FieldInfo fieldInfo;
+
     final Similarity similarity;
 
     FieldInvertState invertState;
+
+    //分词后的结果和docId对应关系
     TermsHashPerField termsHashPerField;
 
     // Non-null if this field ever had doc values in this
@@ -1046,8 +1231,11 @@ final class IndexingChain implements Accountable {
 
     // reused
     TokenStream tokenStream;
+
     private final InfoStream infoStream;
+
     private final Analyzer analyzer;
+
     private boolean first; // first in a document
 
     PerField(
@@ -1058,10 +1246,15 @@ final class IndexingChain implements Accountable {
         InfoStream infoStream,
         Analyzer analyzer) {
       this.fieldName = fieldName;
+
       this.indexCreatedVersionMajor = indexCreatedVersionMajor;
+
       this.schema = schema;
+
       this.similarity = similarity;
+
       this.infoStream = infoStream;
+
       this.analyzer = analyzer;
     }
 
@@ -1076,16 +1269,21 @@ final class IndexingChain implements Accountable {
     }
 
     void setInvertState() {
+
       invertState =
           new FieldInvertState(
               indexCreatedVersionMajor, fieldInfo.name, fieldInfo.getIndexOptions());
+
+      //FreqProxTermsWriterPerField，为每个需要分词的字段创建termsHashPerField
       termsHashPerField = termsHash.addField(invertState, fieldInfo);
+
       if (fieldInfo.omitsNorms() == false) {
         assert norms == null;
         // Even if no documents actually succeed in setting a norm, we still write norms for this
         // segment
         norms = new NormValuesWriter(fieldInfo, bytesUsed);
       }
+
       if (fieldInfo.hasVectors()) {
         termVectorsWriter.setHasVectors();
       }
@@ -1099,6 +1297,7 @@ final class IndexingChain implements Accountable {
     public void finish(int docID) throws IOException {
       if (fieldInfo.omitsNorms() == false) {
         long normValue;
+
         if (invertState.length == 0) {
           // the field exists in this document, but it did not have
           // any indexed tokens, so we assign a default value of zero
@@ -1106,13 +1305,16 @@ final class IndexingChain implements Accountable {
           normValue = 0;
         } else {
           normValue = similarity.computeNorm(invertState);
+
           if (normValue == 0) {
             throw new IllegalStateException(
                 "Similarity " + similarity + " return 0 for non-empty field");
           }
         }
+
         norms.addValue(docID, normValue);
       }
+
       termsHashPerField.finish();
     }
 
@@ -1126,19 +1328,28 @@ final class IndexingChain implements Accountable {
         invertState.reset();
       }
 
+      //分词的必要条件
       final boolean analyzed = field.fieldType().tokenized() && analyzer != null;
+
       /*
        * To assist people in tracking down problems in analysis components, we wish to write the field name to the infostream
        * when we fail. We expect some caller to eventually deal with the real exception, so we don't want any 'catch' clauses,
        * but rather a finally that takes note of the problem.
        */
       boolean succeededInProcessingField = false;
+
+      //分词处理
       try (TokenStream stream = tokenStream = field.tokenStream(analyzer, tokenStream)) {
         // reset the TokenStream to the first token
         stream.reset();
+
+        //将term分词设置到invertState
         invertState.setAttributeSource(stream);
+
+        //将fieldState的属性赋值于FreqProxTermsWriterPerField，为本次写做准备
         termsHashPerField.start(field, first);
 
+        //获取每个分词结果处理
         while (stream.incrementToken()) {
 
           // If we hit an exception in stream.next below
@@ -1148,8 +1359,13 @@ final class IndexingChain implements Accountable {
           // will be marked as deleted, but still
           // consume a docID
 
+          // 获得当前token在token stream中的位置
           int posIncr = invertState.posIncrAttribute.getPositionIncrement();
+
+          // invertState对象用来跟踪terms在被添加到索引期间的一些信息, 包括个数、位置、偏移
           invertState.position += posIncr;
+
+          // position的值应该是大于0，且递增的, 否则抛出异常
           if (invertState.position < invertState.lastPosition) {
             if (posIncr == 0) {
               throw new IllegalArgumentException(
@@ -1182,13 +1398,19 @@ final class IndexingChain implements Accountable {
                     + "': max allowed position is "
                     + IndexWriter.MAX_POSITION);
           }
+
+          // 记录当前的position，用于比较
           invertState.lastPosition = invertState.position;
+
           if (posIncr == 0) {
             invertState.numOverlap++;
           }
 
           int startOffset = invertState.offset + invertState.offsetAttribute.startOffset();
+
+          // endOffset描述了域值被分词后的terms的个数
           int endOffset = invertState.offset + invertState.offsetAttribute.endOffset();
+
           if (startOffset < invertState.lastStartOffset || endOffset < startOffset) {
             throw new IllegalArgumentException(
                 "startOffset must be non-negative, and endOffset must be >= startOffset, and offsets must not go backwards "
@@ -1202,6 +1424,8 @@ final class IndexingChain implements Accountable {
                     + field.name()
                     + "'");
           }
+
+          // 记录当前的startOffset，在处理下一个token的时候用于比较
           invertState.lastStartOffset = startOffset;
 
           try {
@@ -1212,8 +1436,6 @@ final class IndexingChain implements Accountable {
                 "too many tokens for field \"" + field.name() + "\"", ae);
           }
 
-          // System.out.println("  term=" + invertState.termAttribute);
-
           // If we hit an exception in here, we abort
           // all buffered documents since the last
           // flush, on the likelihood that the
@@ -1221,6 +1443,7 @@ final class IndexingChain implements Accountable {
           // corrupt and should not be flushed to a
           // new segment:
           try {
+            // 根据当前term，主要是记录term的倒排表信息
             termsHashPerField.add(invertState.termAttribute.getBytesRef(), docID);
           } catch (MaxBytesLengthExceededException e) {
             byte[] prefix = new byte[30];
@@ -1252,6 +1475,7 @@ final class IndexingChain implements Accountable {
         // TODO: maybe add some safety? then again, it's already checked
         // when we come back around to the field...
         invertState.position += invertState.posIncrAttribute.getPositionIncrement();
+
         invertState.offset += invertState.offsetAttribute.endOffset();
 
         /* if there is an exception coming through, we won't set this to true here:*/
@@ -1265,6 +1489,7 @@ final class IndexingChain implements Accountable {
 
       if (analyzed) {
         invertState.position += analyzer.getPositionIncrementGap(fieldInfo.name);
+
         invertState.offset += analyzer.getOffsetGap(fieldInfo.name);
       }
     }
@@ -1316,16 +1541,27 @@ final class IndexingChain implements Accountable {
    */
   private static final class FieldSchema {
     private final String name;
+
     private int docID = 0;
+
     private final Map<String, String> attributes = new HashMap<>();
+
     private boolean omitNorms = false;
+
     private boolean storeTermVector = false;
+
     private IndexOptions indexOptions = IndexOptions.NONE;
+
     private DocValuesType docValuesType = DocValuesType.NONE;
+
     private int pointDimensionCount = 0;
+
     private int pointIndexDimensionCount = 0;
+
     private int pointNumBytes = 0;
+
     private int vectorDimension = 0;
+
     private VectorSimilarityFunction vectorSimilarityFunction = VectorSimilarityFunction.EUCLIDEAN;
 
     private static String errMsg =

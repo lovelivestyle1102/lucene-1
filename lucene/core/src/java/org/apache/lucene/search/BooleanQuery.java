@@ -75,6 +75,7 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
   public static class Builder {
 
     private int minimumNumberShouldMatch;
+
     private final List<BooleanClause> clauses = new ArrayList<>();
 
     /** Sole constructor. */
@@ -115,7 +116,9 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
       if (clauses.size() >= IndexSearcher.maxClauseCount) {
         throw new IndexSearcher.TooManyClauses();
       }
+
       clauses.add(clause);
+
       return this;
     }
 
@@ -139,19 +142,28 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
   }
 
   private final int minimumNumberShouldMatch;
+
   private final List<BooleanClause> clauses; // used for toString() and getClauses()
+
   private final Map<Occur, Collection<Query>> clauseSets; // used for equals/hashcode
 
   private BooleanQuery(int minimumNumberShouldMatch, BooleanClause[] clauses) {
     this.minimumNumberShouldMatch = minimumNumberShouldMatch;
+
     this.clauses = Collections.unmodifiableList(Arrays.asList(clauses));
+
     clauseSets = new EnumMap<>(Occur.class);
+
     // duplicates matter for SHOULD and MUST
     clauseSets.put(Occur.SHOULD, new Multiset<>());
+
     clauseSets.put(Occur.MUST, new Multiset<>());
+
     // but not for FILTER and MUST_NOT
     clauseSets.put(Occur.FILTER, new HashSet<>());
+
     clauseSets.put(Occur.MUST_NOT, new HashSet<>());
+
     for (BooleanClause clause : clauses) {
       clauseSets.get(clause.getOccur()).add(clause.getQuery());
     }
@@ -199,9 +211,11 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
     if (clauseSets.get(Occur.MUST).size() == 0 && keepShould) {
       return this;
     }
+
     BooleanQuery.Builder newQuery = new BooleanQuery.Builder();
 
     newQuery.setMinimumNumberShouldMatch(getMinimumNumberShouldMatch());
+
     for (BooleanClause clause : clauses) {
       switch (clause.getOccur()) {
         case MUST:
@@ -232,9 +246,11 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
   public Weight createWeight(IndexSearcher searcher, ScoreMode scoreMode, float boost)
       throws IOException {
     BooleanQuery query = this;
+
     if (scoreMode.needsScores() == false) {
       query = rewriteNoScoring();
     }
+
     return new BooleanWeight(query, searcher, scoreMode, boost);
   }
 
@@ -247,7 +263,9 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
     // optimize 1-clause queries
     if (clauses.size() == 1) {
       BooleanClause c = clauses.get(0);
+
       Query query = c.getQuery();
+
       if (minimumNumberShouldMatch == 1 && c.getOccur() == Occur.SHOULD) {
         return query;
       } else if (minimumNumberShouldMatch == 0) {
@@ -269,21 +287,32 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
 
     // recursively rewrite
     {
+      //重新生成一个BooleanQuery的构造器，准备对重写后的Query进行组合
       BooleanQuery.Builder builder = new BooleanQuery.Builder();
+
       builder.setMinimumNumberShouldMatch(getMinimumNumberShouldMatch());
+
       boolean actuallyRewritten = false;
+
       for (BooleanClause clause : this) {
         Query query = clause.getQuery();
+
+        //调用Query子类的rewrite方法
+        //我们的例子中都是TermQuery，所以直接返回自身this
         Query rewritten = query.rewrite(reader);
+
         if (rewritten != query) {
           // rewrite clause
           actuallyRewritten = true;
+
           builder.add(rewritten, clause.getOccur());
         } else {
           // leave as-is
           builder.add(clause);
         }
       }
+
+      //由于我们例子中的的BooleanQuery的Query子类都是TermQuery，不需要重写，所以就不用生成新的BooleanQuery对象
       if (actuallyRewritten) {
         return builder.build();
       }
@@ -292,9 +321,11 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
     // remove duplicate FILTER and MUST_NOT clauses
     {
       int clauseCount = 0;
+
       for (Collection<Query> queries : clauseSets.values()) {
         clauseCount += queries.size();
       }
+
       if (clauseCount != clauses.size()) {
         // since clauseSets implicitly deduplicates FILTER and MUST_NOT
         // clauses, this means there were duplicates
@@ -385,17 +416,23 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
         }
         shouldClauses.put(query, shouldClauses.getOrDefault(query, 0d) + boost);
       }
+
       if (shouldClauses.size() != clauseSets.get(Occur.SHOULD).size()) {
         BooleanQuery.Builder builder =
             new BooleanQuery.Builder().setMinimumNumberShouldMatch(minimumNumberShouldMatch);
+
         for (Map.Entry<Query, Double> entry : shouldClauses.entrySet()) {
           Query query = entry.getKey();
+
           float boost = entry.getValue().floatValue();
+
           if (boost != 1f) {
             query = new BoostQuery(query, boost);
           }
+
           builder.add(query, Occur.SHOULD);
         }
+
         for (BooleanClause clause : clauses) {
           if (clause.getOccur() != Occur.SHOULD) {
             builder.add(clause);
@@ -408,26 +445,34 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
     // Deduplicate MUST clauses by summing up their boosts
     if (clauseSets.get(Occur.MUST).size() > 0) {
       Map<Query, Double> mustClauses = new HashMap<>();
+
       for (Query query : clauseSets.get(Occur.MUST)) {
         double boost = 1;
+
         while (query instanceof BoostQuery) {
           BoostQuery bq = (BoostQuery) query;
           boost *= bq.getBoost();
           query = bq.getQuery();
         }
+
         mustClauses.put(query, mustClauses.getOrDefault(query, 0d) + boost);
       }
       if (mustClauses.size() != clauseSets.get(Occur.MUST).size()) {
         BooleanQuery.Builder builder =
             new BooleanQuery.Builder().setMinimumNumberShouldMatch(minimumNumberShouldMatch);
+
         for (Map.Entry<Query, Double> entry : mustClauses.entrySet()) {
           Query query = entry.getKey();
+
           float boost = entry.getValue().floatValue();
+
           if (boost != 1f) {
             query = new BoostQuery(query, boost);
           }
+
           builder.add(query, Occur.MUST);
         }
+
         for (BooleanClause clause : clauses) {
           if (clause.getOccur() != Occur.MUST) {
             builder.add(clause);
@@ -441,19 +486,25 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
     // MatchAllDocsQuery to a ConstantScoreQuery
     {
       final Collection<Query> musts = clauseSets.get(Occur.MUST);
+
       final Collection<Query> filters = clauseSets.get(Occur.FILTER);
+
       if (musts.size() == 1 && filters.size() > 0) {
         Query must = musts.iterator().next();
+
         float boost = 1f;
+
         if (must instanceof BoostQuery) {
           BoostQuery boostQuery = (BoostQuery) must;
           must = boostQuery.getQuery();
           boost = boostQuery.getBoost();
         }
+
         if (must.getClass() == MatchAllDocsQuery.class) {
           // our single scoring clause matches everything: rewrite to a CSQ on the filter
           // ignore SHOULD clause for now
           BooleanQuery.Builder builder = new BooleanQuery.Builder();
+
           for (BooleanClause clause : clauses) {
             switch (clause.getOccur()) {
               case FILTER:
@@ -467,8 +518,11 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
                 break;
             }
           }
+
           Query rewritten = builder.build();
+
           rewritten = new ConstantScoreQuery(rewritten);
+
           if (boost != 1f) {
             rewritten = new BoostQuery(rewritten, boost);
           }
@@ -478,10 +532,13 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
               new BooleanQuery.Builder()
                   .setMinimumNumberShouldMatch(getMinimumNumberShouldMatch())
                   .add(rewritten, Occur.MUST);
+
           for (Query query : clauseSets.get(Occur.SHOULD)) {
             builder.add(query, Occur.SHOULD);
           }
+
           rewritten = builder.build();
+
           return rewritten;
         }
       }

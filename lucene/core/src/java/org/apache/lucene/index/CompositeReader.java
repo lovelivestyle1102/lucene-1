@@ -56,6 +56,7 @@ public abstract class CompositeReader extends IndexReader {
   @Override
   public String toString() {
     final StringBuilder buffer = new StringBuilder();
+
     // walk up through class hierarchy to get a non-empty simple name (anonymous classes have no
     // name):
     for (Class<?> clazz = getClass(); clazz != null; clazz = clazz.getSuperclass()) {
@@ -64,16 +65,22 @@ public abstract class CompositeReader extends IndexReader {
         break;
       }
     }
+
     buffer.append('(');
+
     final List<? extends IndexReader> subReaders = getSequentialSubReaders();
+
     assert subReaders != null;
+
     if (!subReaders.isEmpty()) {
       buffer.append(subReaders.get(0));
       for (int i = 1, c = subReaders.size(); i < c; ++i) {
         buffer.append(" ").append(subReaders.get(i));
       }
     }
+
     buffer.append(')');
+
     return buffer.toString();
   }
 
@@ -96,8 +103,10 @@ public abstract class CompositeReader extends IndexReader {
     // hurt!
     if (readerContext == null) {
       assert getSequentialSubReaders() != null;
+
       readerContext = CompositeReaderContext.create(this);
     }
+
     return readerContext;
   }
 }

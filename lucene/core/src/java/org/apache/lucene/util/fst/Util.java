@@ -51,14 +51,20 @@ public final class Util {
 
     // Accumulate output as we go
     T output = fst.outputs.getNoOutput();
+
     for (int i = 0; i < input.length; i++) {
+      // 以arc的target为起点，查找满足label的arc，如果找到的话，把arc更新为满足查找条件的arc。
+      // 这里有点绕，是因为实现上为了避免频繁创建arc对象，所以都是以原地更新的方式复用arc变量。
       if (fst.findTargetArc(input.ints[input.offset + i], arc, arc, fstReader) == null) {
         return null;
       }
+
+      //查询结果添加，output累加
       output = fst.outputs.add(output, arc.output());
     }
 
     if (arc.isFinal()) {
+      //计算最终的output
       return fst.outputs.add(output, arc.nextFinalOutput());
     } else {
       return null;
@@ -278,6 +284,7 @@ public final class Util {
       }
 
       FSTPath<T> path = new FSTPath<>(startOutput, node, input, boost, context, payload);
+
       fst.readFirstTargetArc(node, path.arc, bytesReader);
 
       // Bootstrap: find the min starting arc
@@ -477,6 +484,7 @@ public final class Util {
     // since this search is initialized with a single start node
     // it is okay to start with an empty input path here
     searcher.addStartPaths(fromNode, startOutput, allowEmptyString, new IntsRefBuilder());
+
     return searcher.search();
   }
 

@@ -37,6 +37,7 @@ public abstract class AttributeFactory {
   /** Returns a correctly typed {@link MethodHandle} for the no-arg ctor of the given class. */
   static final MethodHandle findAttributeImplCtor(Class<? extends AttributeImpl> clazz) {
     try {
+      //查找对应class默认的构造函数
       return lookup.findConstructor(clazz, NO_ARG_CTOR).asType(NO_ARG_RETURNING_ATTRIBUTEIMPL);
     } catch (NoSuchMethodException | IllegalAccessException e) {
       throw new IllegalArgumentException(
@@ -56,6 +57,7 @@ public abstract class AttributeFactory {
   public static final AttributeFactory DEFAULT_ATTRIBUTE_FACTORY = new DefaultAttributeFactory();
 
   private static final class DefaultAttributeFactory extends AttributeFactory {
+
     private final ClassValue<MethodHandle> constructors =
         new ClassValue<MethodHandle>() {
           @Override
@@ -69,6 +71,7 @@ public abstract class AttributeFactory {
     @Override
     public AttributeImpl createAttributeInstance(Class<? extends Attribute> attClass) {
       try {
+        //执行初始化
         return (AttributeImpl) constructors.get(attClass).invokeExact();
       } catch (Error | RuntimeException e) {
         throw e;

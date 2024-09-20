@@ -641,17 +641,21 @@ public abstract class MergePolicy {
     if (getNoCFSRatio() == 0.0) {
       return false;
     }
+
     long mergedInfoSize = size(mergedInfo, mergeContext);
     if (mergedInfoSize > maxCFSSegmentSize) {
       return false;
     }
+
     if (getNoCFSRatio() >= 1.0) {
       return true;
     }
+
     long totalSize = 0;
     for (SegmentCommitInfo info : infos) {
       totalSize += size(info, mergeContext);
     }
+
     return mergedInfoSize <= getNoCFSRatio() * totalSize;
   }
 
@@ -661,11 +665,16 @@ public abstract class MergePolicy {
    */
   protected long size(SegmentCommitInfo info, MergeContext mergeContext) throws IOException {
     long byteSize = info.sizeInBytes();
+
     int delCount = mergeContext.numDeletesToMerge(info);
+
     assert assertDelCount(delCount, info);
+
     double delRatio =
         info.info.maxDoc() <= 0 ? 0d : (double) delCount / (double) info.info.maxDoc();
+
     assert delRatio <= 1.0;
+
     return (info.info.maxDoc() <= 0 ? byteSize : (long) (byteSize * (1.0 - delRatio)));
   }
 

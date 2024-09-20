@@ -120,9 +120,11 @@ public abstract class PointValues {
     long size = 0;
     for (LeafReaderContext ctx : reader.leaves()) {
       PointValues values = ctx.reader().getPointValues(field);
+
       if (values != null) {
         size += values.size();
       }
+
     }
     return size;
   }
@@ -137,6 +139,7 @@ public abstract class PointValues {
     int count = 0;
     for (LeafReaderContext ctx : reader.leaves()) {
       PointValues values = ctx.reader().getPointValues(field);
+
       if (values != null) {
         count += values.getDocCount();
       }
@@ -154,18 +157,24 @@ public abstract class PointValues {
     byte[] minValue = null;
     for (LeafReaderContext ctx : reader.leaves()) {
       PointValues values = ctx.reader().getPointValues(field);
+
       if (values == null) {
         continue;
       }
+
       byte[] leafMinValue = values.getMinPackedValue();
+
       if (leafMinValue == null) {
         continue;
       }
+
       if (minValue == null) {
         minValue = leafMinValue.clone();
       } else {
         final int numDimensions = values.getNumIndexDimensions();
+
         final int numBytesPerDimension = values.getBytesPerDimension();
+
         final ByteArrayComparator comparator =
             ArrayUtil.getUnsignedComparator(numBytesPerDimension);
         for (int i = 0; i < numDimensions; ++i) {

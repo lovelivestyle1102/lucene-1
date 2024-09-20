@@ -82,11 +82,13 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
 
   /** Default {@code minBitsPerBlock} */
   public static final int DEFAULT_MIN_BITS_PER_BLOCK = 10; // 1024 B
+
   /** Default {@code maxBitsPerBlock} */
   public static final int DEFAULT_MAX_BITS_PER_BLOCK = 26; //   64 MB
 
   /** Smallest {@code minBitsPerBlock} allowed */
   public static final int LIMIT_MIN_BITS_PER_BLOCK = 1;
+
   /** Largest {@code maxBitsPerBlock} allowed */
   public static final int LIMIT_MAX_BITS_PER_BLOCK = 31;
 
@@ -159,6 +161,7 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
               minBitsPerBlock,
               LIMIT_MIN_BITS_PER_BLOCK));
     }
+
     if (maxBitsPerBlock > LIMIT_MAX_BITS_PER_BLOCK) {
       throw new IllegalArgumentException(
           String.format(
@@ -167,6 +170,7 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
               maxBitsPerBlock,
               LIMIT_MAX_BITS_PER_BLOCK));
     }
+
     if (minBitsPerBlock > maxBitsPerBlock) {
       throw new IllegalArgumentException(
           String.format(
@@ -175,9 +179,13 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
               minBitsPerBlock,
               maxBitsPerBlock));
     }
+
     this.maxBitsPerBlock = maxBitsPerBlock;
+
     this.blockBits = minBitsPerBlock;
+
     this.blockAllocate = Objects.requireNonNull(blockAllocate, "Block allocator must not be null.");
+
     this.blockReuse = Objects.requireNonNull(blockReuse, "Block reuse must not be null.");
   }
 
@@ -186,20 +194,25 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
     if (!currentBlock.hasRemaining()) {
       appendBlock();
     }
+
     currentBlock.put(b);
   }
 
   @Override
   public void writeBytes(byte[] src, int offset, int length) {
     assert length >= 0;
+
     while (length > 0) {
       if (!currentBlock.hasRemaining()) {
         appendBlock();
       }
 
       int chunk = Math.min(currentBlock.remaining(), length);
+
       currentBlock.put(src, offset, chunk);
+
       length -= chunk;
+
       offset += chunk;
     }
   }
@@ -215,14 +228,18 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
 
   public void writeBytes(ByteBuffer buffer) {
     buffer = buffer.duplicate();
+
     int length = buffer.remaining();
+
     while (length > 0) {
       if (!currentBlock.hasRemaining()) {
         appendBlock();
       }
 
       int chunk = Math.min(currentBlock.remaining(), length);
+
       buffer.limit(buffer.position() + chunk);
+
       currentBlock.put(buffer);
 
       length -= chunk;
@@ -240,7 +257,6 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
     } else {
       for (ByteBuffer bb : blocks) {
         bb = bb.asReadOnlyBuffer().flip().order(ByteOrder.LITTLE_ENDIAN);
-        ;
         result.add(bb);
       }
     }
@@ -449,8 +465,11 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
     if (blockReuse != NO_REUSE) {
       blocks.forEach(blockReuse);
     }
+
     blocks.clear();
+
     ramBytesUsed = 0;
+
     currentBlock = EMPTY;
   }
 
@@ -495,18 +514,24 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
     // clean up partial results in case of memory pressure.
     ByteBuffersDataOutput cloned =
         new ByteBuffersDataOutput(targetBlockBits, targetBlockBits, blockAllocate, NO_REUSE);
+
     ByteBuffer block;
     while ((block = blocks.pollFirst()) != null) {
       block.flip();
+
       cloned.writeBytes(block);
+
       if (blockReuse != NO_REUSE) {
         blockReuse.accept(block);
       }
     }
 
     assert blocks.isEmpty();
+
     this.blockBits = targetBlockBits;
+
     blocks.addAll(cloned.blocks);
+
     ramBytesUsed = cloned.ramBytesUsed;
   }
 
@@ -517,14 +542,17 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
     }
 
     int blockBits = Long.numberOfTrailingZeros(powerOfTwo);
+
     blockBits = Math.min(blockBits, DEFAULT_MAX_BITS_PER_BLOCK);
+
     blockBits = Math.max(blockBits, DEFAULT_MIN_BITS_PER_BLOCK);
+
     return blockBits;
   }
 
   // TODO: move this block-based conversion to UnicodeUtil.
-
   private static final long HALF_SHIFT = 10;
+
   private static final int SURROGATE_OFFSET =
       Character.MIN_SUPPLEMENTARY_CODE_POINT
           - (UnicodeUtil.UNI_SUR_HIGH_START << HALF_SHIFT)

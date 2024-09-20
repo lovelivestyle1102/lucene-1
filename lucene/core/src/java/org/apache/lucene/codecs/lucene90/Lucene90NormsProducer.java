@@ -81,6 +81,7 @@ final class Lucene90NormsProducer extends NormsProducer implements Cloneable {
 
     String dataName =
         IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, dataExtension);
+
     data = state.directory.openInput(dataName, state.context);
     boolean success = false;
     try {

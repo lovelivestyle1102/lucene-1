@@ -94,7 +94,9 @@ final class DocumentsWriterDeleteQueue implements Accountable, Closeable {
   private volatile long maxSeqNo = Long.MAX_VALUE;
 
   private final long startSeqNo;
+
   private final LongSupplier previousMaxSeqId;
+
   private boolean advanced;
 
   DocumentsWriterDeleteQueue(InfoStream infoStream) {
@@ -257,15 +259,19 @@ final class DocumentsWriterDeleteQueue implements Accountable, Closeable {
 
   private FrozenBufferedUpdates freezeGlobalBufferInternal(final Node<?> currentTail) {
     assert globalBufferLock.isHeldByCurrentThread();
+
     if (globalSlice.sliceTail != currentTail) {
       globalSlice.sliceTail = currentTail;
+
       globalSlice.apply(globalBufferedUpdates, BufferedUpdates.MAX_INT);
     }
 
     if (globalBufferedUpdates.any()) {
       final FrozenBufferedUpdates packet =
           new FrozenBufferedUpdates(infoStream, globalBufferedUpdates, null);
+
       globalBufferedUpdates.clear();
+
       return packet;
     } else {
       return null;

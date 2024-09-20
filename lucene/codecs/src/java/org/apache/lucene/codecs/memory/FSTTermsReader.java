@@ -368,7 +368,9 @@ public class FSTTermsReader extends FieldsProducer {
           state.docFreq = meta.docFreq;
           state.totalTermFreq = meta.totalTermFreq;
         }
+
         decoded = false;
+
         seekPending = false;
       }
 
@@ -386,6 +388,7 @@ public class FSTTermsReader extends FieldsProducer {
       @Override
       public boolean seekExact(BytesRef target) throws IOException {
         updateEnum(fstEnum.seekExact(target));
+
         return term != null;
       }
 

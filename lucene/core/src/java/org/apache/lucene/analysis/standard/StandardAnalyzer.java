@@ -83,10 +83,17 @@ public final class StandardAnalyzer extends StopwordAnalyzerBase {
 
   @Override
   protected TokenStreamComponents createComponents(final String fieldName) {
+    //
     final StandardTokenizer src = new StandardTokenizer();
+
     src.setMaxTokenLength(maxTokenLength);
+
+    //过滤器
     TokenStream tok = new LowerCaseFilter(src);
+
+    //停用词
     tok = new StopFilter(tok, stopwords);
+
     return new TokenStreamComponents(
         r -> {
           src.setMaxTokenLength(StandardAnalyzer.this.maxTokenLength);

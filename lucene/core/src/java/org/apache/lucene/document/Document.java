@@ -37,6 +37,7 @@ import org.apache.lucene.util.BytesRef;
  */
 public final class Document implements Iterable<IndexableField> {
 
+  //字段列表
   private final List<IndexableField> fields = new ArrayList<>();
 
   /** Constructs a new document with no fields. */

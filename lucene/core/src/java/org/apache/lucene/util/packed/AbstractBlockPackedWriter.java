@@ -118,17 +118,24 @@ abstract class AbstractBlockPackedWriter {
   protected final void writeValues(int bitsRequired) throws IOException {
     final PackedInts.Encoder encoder =
         PackedInts.getEncoder(PackedInts.Format.PACKED, PackedInts.VERSION_CURRENT, bitsRequired);
+
     final int iterations = values.length / encoder.byteValueCount();
+
     final int blockSize = encoder.byteBlockCount() * iterations;
+
     if (blocks == null || blocks.length < blockSize) {
       blocks = new byte[blockSize];
     }
+
     if (off < values.length) {
       Arrays.fill(values, off, values.length, 0L);
     }
+
     encoder.encode(values, 0, blocks, 0, iterations);
+
     final int blockCount =
         (int) PackedInts.Format.PACKED.byteCount(PackedInts.VERSION_CURRENT, off, bitsRequired);
+
     out.writeBytes(blocks, blockCount);
   }
 }

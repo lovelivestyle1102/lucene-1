@@ -71,10 +71,18 @@ public class BlockTermsWriter extends FieldsConsumer {
 
   private static class FieldMetaData {
     public final FieldInfo fieldInfo;
+
+    //当前域中的term数量
     public final long numTerms;
+
     public final long termsStartPointer;
+
+    //当前域的所有term在所有文档中出现的次数总和
     public final long sumTotalTermFreq;
+
+    //包含当前域的所有term的文档数量总和，注意的是当前域可能有多个term在同一文档中
     public final long sumDocFreq;
+
     public final int docCount;
 
     public FieldMetaData(
@@ -106,21 +114,29 @@ public class BlockTermsWriter extends FieldsConsumer {
     final String termsFileName =
         IndexFileNames.segmentFileName(
             state.segmentInfo.name, state.segmentSuffix, TERMS_EXTENSION);
+
     this.termsIndexWriter = termsIndexWriter;
+
     maxDoc = state.segmentInfo.maxDoc();
+
     out = state.directory.createOutput(termsFileName, state.context);
+
     boolean success = false;
     try {
       fieldInfos = state.fieldInfos;
+
       CodecUtil.writeIndexHeader(
           out, CODEC_NAME, VERSION_CURRENT, state.segmentInfo.getId(), state.segmentSuffix);
+
       currentField = null;
+
       this.postingsWriter = postingsWriter;
       // segment = state.segmentName;
 
       // System.out.println("BTW.init seg=" + state.segmentName);
 
       postingsWriter.init(out, state); // have consumer write its format/header
+
       success = true;
     } finally {
       if (!success) {
@@ -236,11 +252,14 @@ public class BlockTermsWriter extends FieldsConsumer {
     void write(BytesRef text, TermsEnum termsEnum, NormsProducer norms) throws IOException {
 
       BlockTermState state = postingsWriter.writeTerm(text, termsEnum, docsSeen, norms);
+
       if (state == null) {
         // No docs for this term:
         return;
       }
+
       sumDocFreq += state.docFreq;
+
       sumTotalTermFreq += state.totalTermFreq;
 
       assert state.docFreq > 0;
@@ -322,6 +341,7 @@ public class BlockTermsWriter extends FieldsConsumer {
       // in the block, against term before first term in
       // this block:
       int commonPrefix = sharedPrefix(lastPrevTerm.get(), pendingTerms[0].term.get());
+
       for (int termCount = 1; termCount < pendingCount; termCount++) {
         commonPrefix =
             Math.min(
@@ -329,6 +349,7 @@ public class BlockTermsWriter extends FieldsConsumer {
       }
 
       out.writeVInt(pendingCount);
+
       out.writeVInt(commonPrefix);
 
       // 2nd pass: write suffixes, as separate byte[] blob
@@ -337,10 +358,14 @@ public class BlockTermsWriter extends FieldsConsumer {
         // TODO: cutover to better intblock codec, instead
         // of interleaving here:
         bytesWriter.writeVInt(suffix);
+
         bytesWriter.writeBytes(pendingTerms[termCount].term.bytes(), commonPrefix, suffix);
       }
+
       out.writeVInt(Math.toIntExact(bytesWriter.size()));
+
       bytesWriter.copyTo(out);
+
       bytesWriter.reset();
 
       // 3rd pass: write the freqs as byte[] blob
@@ -348,28 +373,40 @@ public class BlockTermsWriter extends FieldsConsumer {
       // write prefix, suffix first:
       for (int termCount = 0; termCount < pendingCount; termCount++) {
         final BlockTermState state = pendingTerms[termCount].state;
+
         assert state != null;
+
         bytesWriter.writeVInt(state.docFreq);
+
         if (fieldInfo.getIndexOptions() != IndexOptions.DOCS) {
           bytesWriter.writeVLong(state.totalTermFreq - state.docFreq);
         }
       }
+
       out.writeVInt(Math.toIntExact(bytesWriter.size()));
+
       bytesWriter.copyTo(out);
+
       bytesWriter.reset();
 
       // 4th pass: write the metadata
       boolean absolute = true;
       for (int termCount = 0; termCount < pendingCount; termCount++) {
         final BlockTermState state = pendingTerms[termCount].state;
+
         postingsWriter.encodeTerm(bytesWriter, fieldInfo, state, absolute);
+
         absolute = false;
       }
+
       out.writeVInt(Math.toIntExact(bytesWriter.size()));
+
       bytesWriter.copyTo(out);
+
       bytesWriter.reset();
 
       lastPrevTerm.copyBytes(pendingTerms[pendingCount - 1].term);
+
       pendingCount = 0;
     }
   }

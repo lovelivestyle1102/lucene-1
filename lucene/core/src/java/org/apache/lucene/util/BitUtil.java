@@ -200,18 +200,28 @@ public final class BitUtil {
 
   // magic numbers for bit interleaving
   private static final long MAGIC0 = 0x5555555555555555L;
+
   private static final long MAGIC1 = 0x3333333333333333L;
+
   private static final long MAGIC2 = 0x0F0F0F0F0F0F0F0FL;
+
   private static final long MAGIC3 = 0x00FF00FF00FF00FFL;
+
   private static final long MAGIC4 = 0x0000FFFF0000FFFFL;
+
   private static final long MAGIC5 = 0x00000000FFFFFFFFL;
+
   private static final long MAGIC6 = 0xAAAAAAAAAAAAAAAAL;
 
   // shift values for bit interleaving
   private static final long SHIFT0 = 1;
+
   private static final long SHIFT1 = 2;
+
   private static final long SHIFT2 = 4;
+
   private static final long SHIFT3 = 8;
+
   private static final long SHIFT4 = 16;
 
   /**

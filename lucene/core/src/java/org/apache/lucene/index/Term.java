@@ -39,6 +39,7 @@ public final class Term implements Comparable<Term>, Accountable {
           + RamUsageEstimator.shallowSizeOfInstance(BytesRef.class);
 
   String field;
+
   BytesRef bytes;
 
   /**

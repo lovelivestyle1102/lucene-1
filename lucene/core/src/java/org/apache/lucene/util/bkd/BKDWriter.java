@@ -78,7 +78,9 @@ import org.apache.lucene.util.bkd.BKDUtil.ByteArrayPredicate;
 public class BKDWriter implements Closeable {
 
   public static final String CODEC_NAME = "BKD";
+
   public static final int VERSION_START = 4; // version used by Lucene 7.0
+
   // public static final int VERSION_CURRENT = VERSION_START;
   public static final int VERSION_LEAF_STORES_BOUNDS = 5;
   public static final int VERSION_SELECTIVE_INDEXING = 6;
@@ -88,10 +90,12 @@ public class BKDWriter implements Closeable {
 
   /** Number of splits before we compute the exact bounding box of an inner node. */
   private static final int SPLITS_BEFORE_EXACT_BOUNDS = 4;
+
   /** Default maximum heap to use, before spilling to (slower) disk */
   public static final float DEFAULT_MAX_MB_SORT_IN_HEAP = 16.0f;
 
   /** BKD tree configuration */
+  // 关于BKD树构建过程的一些配置信息
   protected final BKDConfig config;
 
   private final ByteArrayComparator comparator;
@@ -102,30 +106,40 @@ public class BKDWriter implements Closeable {
   final String tempFileNamePrefix;
   final double maxMBSortInHeap;
 
+  // 以下这些都是临时变量
   final byte[] scratchDiff;
   final byte[] scratch1;
   final byte[] scratch2;
   final BytesRef scratchBytesRef1 = new BytesRef();
   final BytesRef scratchBytesRef2 = new BytesRef();
+
+  // 下标是维度，值是对应维度的所有值的最长公共前缀
   final int[] commonPrefixLengths;
 
+  // 存储docID
   protected final FixedBitSet docsSeen;
 
+  // 存储所有的数据
   private PointWriter pointWriter;
+
+  // 是否结束数据添加，开始构建
   private boolean finished;
 
   private IndexOutput tempInput;
   private final int maxPointsSortInHeap;
 
   /** Minimum per-dim values, packed */
+  // 下标是维度，值是这一维中的最小值
   protected final byte[] minPackedValue;
 
   /** Maximum per-dim values, packed */
+  // 下标是维度，值是这一维中的最大值
   protected final byte[] maxPackedValue;
 
   protected long pointCount;
 
   /** An upper bound on how many points the caller will add (includes deletions) */
+  // 总的point数
   private final long totalPointCount;
 
   private final int maxDoc;
@@ -137,29 +151,41 @@ public class BKDWriter implements Closeable {
       BKDConfig config,
       double maxMBSortInHeap,
       long totalPointCount) {
+
     verifyParams(maxMBSortInHeap, totalPointCount);
+
     // We use tracking dir to deal with removing files on exception, so each place that
     // creates temp files doesn't need crazy try/finally/sucess logic:
     this.tempDir = new TrackingDirectoryWrapper(tempDir);
+
     this.tempFileNamePrefix = tempFileNamePrefix;
+
     this.maxMBSortInHeap = maxMBSortInHeap;
 
     this.totalPointCount = totalPointCount;
+
     this.maxDoc = maxDoc;
 
     this.config = config;
+
     this.comparator = ArrayUtil.getUnsignedComparator(config.bytesPerDim);
+
     this.equalsPredicate = BKDUtil.getEqualsPredicate(config.bytesPerDim);
+
     this.commonPrefixComparator = BKDUtil.getPrefixLengthComparator(config.bytesPerDim);
 
     docsSeen = new FixedBitSet(maxDoc);
 
     scratchDiff = new byte[config.bytesPerDim];
+
     scratch1 = new byte[config.packedBytesLength];
+
     scratch2 = new byte[config.packedBytesLength];
+
     commonPrefixLengths = new int[config.numDims];
 
     minPackedValue = new byte[config.packedIndexBytesLength];
+
     maxPackedValue = new byte[config.packedIndexBytesLength];
 
     // Maximum number of points we hold in memory at any time
@@ -196,6 +222,7 @@ public class BKDWriter implements Closeable {
     // number.
     if (totalPointCount > maxPointsSortInHeap) {
       pointWriter = new OfflinePointWriter(config, tempDir, tempFileNamePrefix, "spill", 0);
+
       tempInput = ((OfflinePointWriter) pointWriter).out;
     } else {
       pointWriter = new HeapPointWriter(config, Math.toIntExact(totalPointCount));
@@ -211,6 +238,7 @@ public class BKDWriter implements Closeable {
               + packedValue.length
               + ")");
     }
+
     if (pointCount >= totalPointCount) {
       throw new IllegalStateException(
           "totalPointCount="
@@ -219,6 +247,7 @@ public class BKDWriter implements Closeable {
               + (pointCount + 1)
               + " values");
     }
+
     if (pointCount == 0) {
       initPointWriter();
       System.arraycopy(packedValue, 0, minPackedValue, 0, config.packedIndexBytesLength);
@@ -233,14 +262,19 @@ public class BKDWriter implements Closeable {
         }
       }
     }
+
     pointWriter.append(packedValue, docID);
+
     pointCount++;
+
     docsSeen.set(docID);
   }
 
   private static class MergeReader {
     final BKDReader bkd;
+
     final BKDReader.IntersectState state;
+
     final MergeState.DocMap docMap;
 
     /** Current doc ID */
@@ -471,25 +505,40 @@ public class BKDWriter implements Closeable {
 
     pointCount = values.size();
 
+    // 通过point总数和每个叶子节点最多有多少个point计算有多少个叶子节点
     final int numLeaves =
         Math.toIntExact((pointCount + config.maxPointsInLeafNode - 1) / config.maxPointsInLeafNode);
+
+    // 需要多少个分裂点
     final int numSplits = numLeaves - 1;
 
     checkMaxLeafNodeCount(numLeaves);
 
+    // 下标是第几次分裂，值是split的value
     final byte[] splitPackedValues = new byte[numSplits * config.bytesPerDim];
+
+    // 下标是第几次分裂，值是split用的维度
     final byte[] splitDimensionValues = new byte[numSplits];
+
+    // 每个叶子节点在kdd文件中的起始位置
     final long[] leafBlockFPs = new long[numLeaves];
 
     // compute the min/max for this slice
+    // 所有point的所有维度的最大值和最小值分别存储在maxPackedValue和minPackedValue中
     computePackedValueBounds(
         values, 0, Math.toIntExact(pointCount), minPackedValue, maxPackedValue, scratchBytesRef1);
+
+    // 记录所有的docID
     for (int i = 0; i < Math.toIntExact(pointCount); ++i) {
       docsSeen.set(values.getDocID(i));
     }
 
     final long dataStartFP = dataOut.getFilePointer();
+
+    // 记录的是每一维已经用作split的次数
     final int[] parentSplits = new int[config.numIndexDims];
+
+    // 递归获取每个叶子节点并进行存储在kdd中
     build(
         0,
         numLeaves,
@@ -511,17 +560,21 @@ public class BKDWriter implements Closeable {
 
     BKDTreeLeafNodes leafNodes =
         new BKDTreeLeafNodes() {
+
+          // 获取第index个叶子节点在kdd中的起始位置
           @Override
           public long getLeafLP(int index) {
             return leafBlockFPs[index];
           }
 
+          // 获取第index个叶子节点的分裂值
           @Override
           public BytesRef getSplitValue(int index) {
             scratchBytesRef1.offset = index * config.bytesPerDim;
             return scratchBytesRef1;
           }
 
+          // 获取第index个叶子节点的分裂维度
           @Override
           public int getSplitDimension(int index) {
             return splitDimensionValues[index] & 0xff;
@@ -561,6 +614,7 @@ public class BKDWriter implements Closeable {
 
           @Override
           public void visit(int docID, byte[] packedValue) throws IOException {
+            // 入口在这个方法，把所有的数据都添加到oneDimWriter
             oneDimWriter.add(packedValue, docID);
           }
 
@@ -575,6 +629,7 @@ public class BKDWriter implements Closeable {
           }
         });
 
+    // 返回一个构建kdi的Runnable方法
     return oneDimWriter.finish();
   }
 
@@ -674,17 +729,23 @@ public class BKDWriter implements Closeable {
 
       if (leafCount == 0
           || equalsPredicate.test(leafValues, (leafCount - 1) * config.bytesPerDim, packedValue, 0)
-              == false) {
+              == false) {// 统计有多少个不一样的值，只要跟前一个值相比就行，因为是排好序的
         leafCardinality++;
       }
+
+      // 当前正在处理的point拷贝到leafValues
       System.arraycopy(
           packedValue,
           0,
           leafValues,
           leafCount * config.packedBytesLength,
           config.packedBytesLength);
+
+      // 记录docID
       leafDocs[leafCount] = docID;
       docsSeen.set(docID);
+
+      // 当前叶子节点的point个数
       leafCount++;
 
       if (valueCount + leafCount > totalPointCount) {
@@ -696,10 +757,11 @@ public class BKDWriter implements Closeable {
                 + " values");
       }
 
-      if (leafCount == config.maxPointsInLeafNode) {
+      if (leafCount == config.maxPointsInLeafNode) { // 一个叶子节点满了
         // We write a block once we hit exactly the max count ... this is different from
         // when we write N > 1 dimensional points where we write between max/2 and max per leaf
         // block
+        // 持久化叶子节点的数据
         writeLeafBlock(leafCardinality);
         leafCardinality = 0;
         leafCount = 0;
@@ -758,9 +820,11 @@ public class BKDWriter implements Closeable {
 
     private void writeLeafBlock(int leafCardinality) throws IOException {
       assert leafCount != 0;
-      if (valueCount == 0) {
+      if (valueCount == 0) {// minPackedValue就是第一个叶子节点的第一个point
         System.arraycopy(leafValues, 0, minPackedValue, 0, config.packedIndexBytesLength);
       }
+
+      // 当前叶子节点的最后一个point就是maxPackedValue
       System.arraycopy(
           leafValues,
           (leafCount - 1) * config.packedBytesLength,
@@ -768,22 +832,30 @@ public class BKDWriter implements Closeable {
           0,
           config.packedIndexBytesLength);
 
+      // 更新当前已经处理的point个数
       valueCount += leafCount;
 
+      // 每个叶子节点的第一个point当做是叶子节点之间的分割点
       if (leafBlockFPs.size() > 0) {
         // Save the first (minimum) value in each leaf block except the first, to build the split
         // value index in the end:
         leafBlockStartValues.add(ArrayUtil.copyOfSubArray(leafValues, 0, config.packedBytesLength));
       }
+
+      // 当前叶子节点在kdd文件中的起始位置
       leafBlockFPs.add(dataOut.getFilePointer());
       checkMaxLeafNodeCount(leafBlockFPs.size());
 
       // Find per-dim common prefix:
+      // 获取所有值的公共前缀
       commonPrefixLengths[0] =
           commonPrefixComparator.compare(
               leafValues, 0, leafValues, (leafCount - 1) * config.packedBytesLength);
 
+      // 记录当前叶子节点中point对应的docID集合
       writeLeafBlockDocs(dataOut, leafDocs, 0, leafCount);
+
+      // 记录公共前缀
       writeCommonPrefixes(dataOut, commonPrefixLengths, leafValues);
 
       scratchBytesRef1.length = config.packedBytesLength;
@@ -809,6 +881,8 @@ public class BKDWriter implements Closeable {
           packedValues,
           leafDocs,
           0);
+
+      // 持久化所有的point数据，有两种方式，后面详细介绍
       writeLeafBlockPackedValues(
           dataOut, commonPrefixLengths, leafCount, 0, packedValues, leafCardinality);
     }
@@ -999,12 +1073,16 @@ public class BKDWriter implements Closeable {
    */
   private byte[] packIndex(BKDTreeLeafNodes leafNodes) throws IOException {
     /** Reused while packing the index */
+    // 临时存储
     ByteBuffersDataOutput writeBuffer = ByteBuffersDataOutput.newResettableInstance();
 
     // This is the "file" we append the byte[] to:
+    // 递归过程中，构建好的索引树片段存储在blocks中
     List<byte[]> blocks = new ArrayList<>();
     byte[] lastSplitValues = new byte[config.bytesPerDim * config.numIndexDims];
     // System.out.println("\npack index");
+
+    // 递归构建索引树
     int totalSize =
         recursePackIndex(
             writeBuffer,
@@ -1018,6 +1096,7 @@ public class BKDWriter implements Closeable {
             leafNodes.numLeaves());
 
     // Compact the byte[] blocks into single byte index:
+    // 完整的索引树存储到index
     byte[] index = new byte[totalSize];
     int upto = 0;
     for (byte[] block : blocks) {
@@ -1042,17 +1121,17 @@ public class BKDWriter implements Closeable {
    * split byte[] on each inner node
    */
   private int recursePackIndex(
-      ByteBuffersDataOutput writeBuffer,
-      BKDTreeLeafNodes leafNodes,
-      long minBlockFP,
+      ByteBuffersDataOutput writeBuffer,// 用来临时存储数据，满足一个block的时候会加入到block中
+      BKDTreeLeafNodes leafNodes,// 获取叶子节点的相关数据
+      long minBlockFP,// 当前处理叶子节点范围中最左边叶子节点在kdd中的位置
       List<byte[]> blocks,
-      byte[] lastSplitValues,
+      byte[] lastSplitValues,// 每一维的上一次分割点的值
       boolean[] negativeDeltas,
-      boolean isLeft,
-      int leavesOffset,
-      int numLeaves)
+      boolean isLeft, // 是否是左子树
+      int leavesOffset,// 从第几个叶子节点开始
+      int numLeaves)// 要处理多少个叶子节点
       throws IOException {
-    if (numLeaves == 1) {
+    if (numLeaves == 1) {// 叶子节点
       if (isLeft) {
         assert leafNodes.getLeafLP(leavesOffset) - minBlockFP == 0;
         return 0;
@@ -1077,11 +1156,19 @@ public class BKDWriter implements Closeable {
         writeBuffer.writeVLong(delta);
       }
 
+      // 左子树的叶子节点个数
       int numLeftLeafNodes = getNumLeftLeafNodes(numLeaves);
+
+      // 右子树的叶子节点起始编号
       final int rightOffset = leavesOffset + numLeftLeafNodes;
+
+      // 分割点的编号
       final int splitOffset = rightOffset - 1;
 
+      // 用来分割的值的维度
       int splitDim = leafNodes.getSplitDimension(splitOffset);
+
+      // 分割点的值，注意值是从分割维度开始的
       BytesRef splitValue = leafNodes.getSplitValue(splitOffset);
       int address = splitValue.offset;
 
@@ -1089,6 +1176,7 @@ public class BKDWriter implements Closeable {
       // splitValue=" + new BytesRef(splitPackedValues, address, config.bytesPerDim));
 
       // find common prefix with last split value in this dim:
+      // 和前一个分割值相比，前缀长度
       int prefix =
           commonPrefixComparator.compare(
               splitValue.bytes, address, lastSplitValues, splitDim * config.bytesPerDim);
@@ -1096,6 +1184,7 @@ public class BKDWriter implements Closeable {
       // System.out.println("writeNodeData nodeID=" + nodeID + " splitDim=" + splitDim + " numDims="
       // + numDims + " config.bytesPerDim=" + config.bytesPerDim + " prefix=" + prefix);
 
+      // 第一个不相等的值的差值
       int firstDiffByteDelta;
       if (prefix < config.bytesPerDim) {
         // System.out.println("  delta byte cur=" +
@@ -1105,7 +1194,7 @@ public class BKDWriter implements Closeable {
         firstDiffByteDelta =
             (splitValue.bytes[address + prefix] & 0xFF)
                 - (lastSplitValues[splitDim * config.bytesPerDim + prefix] & 0xFF);
-        if (negativeDeltas[splitDim]) {
+        if (negativeDeltas[splitDim]) {// 左子树和split value的差值是负的，需要转化下符号
           firstDiffByteDelta = -firstDiffByteDelta;
         }
         // System.out.println("  delta=" + firstDiffByteDelta);
@@ -1115,6 +1204,7 @@ public class BKDWriter implements Closeable {
       }
 
       // pack the prefix, splitDim and delta first diff byte into a single vInt:
+      // 把  firstDiffByteDelta，prefix，splitDim编码成code
       int code =
           (firstDiffByteDelta * (1 + config.bytesPerDim) + prefix) * config.numIndexDims + splitDim;
 
@@ -1125,6 +1215,7 @@ public class BKDWriter implements Closeable {
       writeBuffer.writeVInt(code);
 
       // write the split value, prefix coded vs. our parent's split value:
+      // 存储splitvalue的后缀
       int suffix = config.bytesPerDim - prefix;
       byte[] savSplitValue = new byte[suffix];
       if (suffix > 1) {
@@ -1133,6 +1224,7 @@ public class BKDWriter implements Closeable {
 
       byte[] cmp = lastSplitValues.clone();
 
+      // 更新lastSplitValues
       System.arraycopy(
           lastSplitValues, splitDim * config.bytesPerDim + prefix, savSplitValue, 0, suffix);
 
@@ -1149,12 +1241,14 @@ public class BKDWriter implements Closeable {
       // placeholder for left-tree numBytes; we need this so that at search time if we only need to
       // recurse into the right sub-tree we can
       // quickly seek to its starting point
+      // 当前位置空出来，留着存储左子树的总大小，这样就能快速定位到兄弟节点
       int idxSav = blocks.size();
       blocks.add(null);
 
       boolean savNegativeDelta = negativeDeltas[splitDim];
       negativeDeltas[splitDim] = true;
 
+      // 递归构建左子树的索引树
       int leftNumBytes =
           recursePackIndex(
               writeBuffer,
@@ -1179,6 +1273,8 @@ public class BKDWriter implements Closeable {
       blocks.set(idxSav, bytes2);
 
       negativeDeltas[splitDim] = false;
+
+      // 递归构建右子树的索引树
       int rightNumBytes =
           recursePackIndex(
               writeBuffer,
@@ -1262,15 +1358,19 @@ public class BKDWriter implements Closeable {
     int prefixLenSum = Arrays.stream(commonPrefixLengths).sum();
     if (prefixLenSum == config.packedBytesLength) {
       // all values in this block are equal
+      // 所有的point数据都相等，直接写个-1做标记
       out.writeByte((byte) -1);
     } else {
       assert commonPrefixLengths[sortedDim] < config.bytesPerDim;
       // estimate if storing the values with cardinality is cheaper than storing all values.
+
+      // 每个point是从compressedByteOffset开始记录的
       int compressedByteOffset = sortedDim * config.bytesPerDim + commonPrefixLengths[sortedDim];
       int highCardinalityCost;
       int lowCardinalityCost;
       if (count == leafCardinality) {
         // all values in this block are different
+        // 所有的值都不相等，直接用highCardinality方式进行存储，所以随便设个highCardinalityCost < lowCardinalityCost就行
         highCardinalityCost = 0;
         lowCardinalityCost = 1;
       } else {
@@ -1278,15 +1378,25 @@ public class BKDWriter implements Closeable {
         int numRunLens = 0;
         for (int i = 0; i < count; ) {
           // do run-length compression on the byte at compressedByteOffset
+          // runLen是从第i个point开始，suffix的第一个字节相同的point有多少个
           int runLen = runLen(packedValues, i, Math.min(i + 0xff, count), compressedByteOffset);
           assert runLen <= 0xff;
           numRunLens++;
           i += runLen;
         }
         // Add cost of runLen compression
+        // numRunLens就是下面例子图中，可以按suffix的第一个字节相同的分为多少组
+        // 存储suffix占用的空间是：count * (config.packedBytesLength - prefixLenSum - 1)
+        // 存储每一组个数需要： numRunLens个字节
+        // 存储每一组中suffix的第一个字节需要： numRunLens个字节
         highCardinalityCost =
             count * (config.packedBytesLength - prefixLenSum - 1) + 2 * numRunLens;
         // +1 is the byte needed for storing the cardinality
+
+        // leafCardinality就是我们下面例子图中，可以按值相同分为多少组
+        // 每一组占用的空间是：suffix+count
+        // suffix占用的字节数：config.packedBytesLength - prefixLenSum
+        // count占用的字节数：1
         lowCardinalityCost = leafCardinality * (config.packedBytesLength - prefixLenSum + 1);
       }
       if (lowCardinalityCost <= highCardinalityCost) {
@@ -1303,25 +1413,32 @@ public class BKDWriter implements Closeable {
   private void writeLowCardinalityLeafBlockPackedValues(
       DataOutput out, int[] commonPrefixLengths, int count, IntFunction<BytesRef> packedValues)
       throws IOException {
-    if (config.numIndexDims != 1) {
+    if (config.numIndexDims != 1) {// 记录每一维的最小值和最大值
       writeActualBounds(out, commonPrefixLengths, count, packedValues);
     }
+
+    // 获取叶子节点中的第一个point
     BytesRef value = packedValues.apply(0);
+
+    // 把第一个point拷贝到scratch1中，作为用来判断后续值是否相等的key
     System.arraycopy(value.bytes, value.offset, scratch1, 0, config.packedBytesLength);
     int cardinality = 1;
-    for (int i = 1; i < count; i++) {
+    for (int i = 1; i < count; i++) {// 遍历所有的point
       value = packedValues.apply(i);
-      for (int dim = 0; dim < config.numDims; dim++) {
+      for (int dim = 0; dim < config.numDims; dim++) {// 遍历每一维
         final int start = dim * config.bytesPerDim;
         if (equalsPredicate.test(value.bytes, value.offset + start, scratch1, start) == false) {
+          // 记录有多少个值相等
           out.writeVInt(cardinality);
-          for (int j = 0; j < config.numDims; j++) {
+          for (int j = 0; j < config.numDims; j++) {// 记录每一维除了公共前缀之外的其他数据
             out.writeBytes(
                 scratch1,
                 j * config.bytesPerDim + commonPrefixLengths[j],
                 config.bytesPerDim - commonPrefixLengths[j]);
           }
+          // 把当前值拷贝到scratch1中，作为下一轮对比的key
           System.arraycopy(value.bytes, value.offset, scratch1, 0, config.packedBytesLength);
+          // 重置相等值的统计
           cardinality = 1;
           break;
         } else if (dim == config.numDims - 1) {
@@ -1329,6 +1446,8 @@ public class BKDWriter implements Closeable {
         }
       }
     }
+
+    // 处理最后一批值相等的数据
     out.writeVInt(cardinality);
     for (int i = 0; i < config.numDims; i++) {
       out.writeBytes(
@@ -1346,18 +1465,22 @@ public class BKDWriter implements Closeable {
       IntFunction<BytesRef> packedValues,
       int compressedByteOffset)
       throws IOException {
-    if (config.numIndexDims != 1) {
+    if (config.numIndexDims != 1) {// 记录每一维的最小值和最大值
       writeActualBounds(out, commonPrefixLengths, count, packedValues);
     }
     commonPrefixLengths[sortedDim]++;
     for (int i = 0; i < count; ) {
       // do run-length compression on the byte at compressedByteOffset
+      // 计算从i开始，总共有几个数据除了公共前缀之外的第一个字节是相等的
       int runLen = runLen(packedValues, i, Math.min(i + 0xff, count), compressedByteOffset);
       assert runLen <= 0xff;
       BytesRef first = packedValues.apply(i);
       byte prefixByte = first.bytes[first.offset + compressedByteOffset];
+      // 记录前缀
       out.writeByte(prefixByte);
+      // 记录个数
       out.writeByte((byte) runLen);
+      // 记录除了前缀剩下的数据
       writeLeafBlockPackedValuesRange(out, commonPrefixLengths, i, i + runLen, packedValues);
       i += runLen;
       assert i <= count;
@@ -1509,26 +1632,33 @@ public class BKDWriter implements Closeable {
    * @param parentSplits how many times each dim has been split on the parent levels
    * @return the dimension to split
    */
+  // minPackedValue:所有数据中的每一维的最小值
+  // maxPackedValue:所有数据中的每一维的最大值
+  // parentSplits:在上层中各个维度成为排序维度的次数
   protected int split(byte[] minPackedValue, byte[] maxPackedValue, int[] parentSplits) {
     // First look at whether there is a dimension that has split less than 2x less than
     // the dim that has most splits, and return it if there is such a dimension and it
     // does not only have equals values. This helps ensure all dimensions are indexed.
+    // 第一种: 寻找排序的维度是用来排序的次数小于最多排序次数维度的一半，并且所有的值并不是都相等的维度，这种策略是为了确保如果BKD树比较高，所有的维度都有机会用于排序
     int maxNumSplits = 0;
-    for (int numSplits : parentSplits) {
+    for (int numSplits : parentSplits) {// 寻找目前用来排序次数最多的维度
       maxNumSplits = Math.max(maxNumSplits, numSplits);
     }
     for (int dim = 0; dim < config.numIndexDims; ++dim) {
       final int offset = dim * config.bytesPerDim;
       if (parentSplits[dim] < maxNumSplits / 2
           && comparator.compare(minPackedValue, offset, maxPackedValue, offset) != 0) {
+        // 如果某个维度用来排序的次数小于最多排序次数维度的一半，并且所有的值并不是都相等
         return dim;
       }
     }
 
     // Find which dim has the largest span so we can split on it:
+    // 第二种：寻找最大值和最小值差距最大的维度
     int splitDim = -1;
     for (int dim = 0; dim < config.numIndexDims; dim++) {
       NumericUtils.subtract(config.bytesPerDim, dim, maxPackedValue, minPackedValue, scratchDiff);
+      // scratch1是临时变量，存储当前已找到的用户排序维度的最大值和最小值的差值
       if (splitDim == -1 || comparator.compare(scratchDiff, 0, scratch1, 0) > 0) {
         System.arraycopy(scratchDiff, 0, scratch1, 0, config.bytesPerDim);
         splitDim = dim;
@@ -1559,27 +1689,28 @@ public class BKDWriter implements Closeable {
   /* Recursively reorders the provided reader and writes the bkd-tree on the fly; this method is used
    * when we are writing a new segment directly from IndexWriter's indexing buffer (MutablePointsReader). */
   private void build(
-      int leavesOffset,
-      int numLeaves,
-      MutablePointValues reader,
-      int from,
-      int to,
+      int leavesOffset,// 从第几个叶子节点开始
+      int numLeaves,// 要处理几个叶子节点
+      MutablePointValues reader,// 所有的point数据
+      int from,// 从第几个point开始
+      int to, // 从第几个point结束
       IndexOutput out,
-      byte[] minPackedValue,
-      byte[] maxPackedValue,
-      int[] parentSplits,
-      byte[] splitPackedValues,
-      byte[] splitDimensionValues,
+      byte[] minPackedValue,// 当前要处理范围内的所有point的各个维度的最小值
+      byte[] maxPackedValue,// 当前要处理范围内的所有point的各个维度的最大值
+      int[] parentSplits, // 每一维作为split的次数
+      byte[] splitPackedValues,// split的value
+      byte[] splitDimensionValues,// split的dim
       long[] leafBlockFPs,
       int[] spareDocIds)
       throws IOException {
 
-    if (numLeaves == 1) {
+    if (numLeaves == 1) { // 叶子节点
       // leaf node
       final int count = to - from;
       assert count <= config.maxPointsInLeafNode;
 
       // Compute common prefixes
+      // 计算每一维的公共前缀
       Arrays.fill(commonPrefixLengths, config.bytesPerDim);
       reader.getValue(from, scratchBytesRef1);
       for (int i = from + 1; i < to; ++i) {
@@ -1599,6 +1730,8 @@ public class BKDWriter implements Closeable {
       }
 
       // Find the dimension that has the least number of unique bytes at commonPrefixLengths[dim]
+      // 寻找每一维后缀的第一个字节，不一样值最少的dim
+      // 这里应该是为了高效排序用的，我猜的，没有深入去看排序的逻辑
       FixedBitSet[] usedBytes = new FixedBitSet[config.numDims];
       for (int dim = 0; dim < config.numDims; ++dim) {
         if (commonPrefixLengths[dim] < config.bytesPerDim) {
@@ -1626,6 +1759,7 @@ public class BKDWriter implements Closeable {
       }
 
       // sort by sortedDim
+      // 按sortedDim排序
       MutablePointsReaderUtils.sortByDim(
           config,
           sortedDim,
@@ -1636,6 +1770,7 @@ public class BKDWriter implements Closeable {
           scratchBytesRef1,
           scratchBytesRef2);
 
+      // 统计叶子节点中有多少个不一样的值
       BytesRef comparator = scratchBytesRef1;
       BytesRef collector = scratchBytesRef2;
       reader.getValue(from, comparator);
@@ -1658,18 +1793,23 @@ public class BKDWriter implements Closeable {
           }
         }
       }
+
       // Save the block file pointer:
+      // 记录叶子节点在kdd中的起始位置
       leafBlockFPs[leavesOffset] = out.getFilePointer();
 
       // Write doc IDs
+      // 记录docID
       int[] docIDs = spareDocIds;
       for (int i = from; i < to; ++i) {
         docIDs[i - from] = reader.getDocID(i);
       }
       // System.out.println("writeLeafBlock pos=" + out.getFilePointer());
+
       writeLeafBlockDocs(out, docIDs, 0, count);
 
       // Write the common prefixes:
+      // 记录前缀
       reader.getValue(from, scratchBytesRef1);
       System.arraycopy(
           scratchBytesRef1.bytes, scratchBytesRef1.offset, scratch1, 0, config.packedBytesLength);
@@ -1686,14 +1826,17 @@ public class BKDWriter implements Closeable {
           };
       assert valuesInOrderAndBounds(
           config, count, sortedDim, minPackedValue, maxPackedValue, packedValues, docIDs, 0);
+
+      // 持久化叶子节点的point数据，和前面一维数据的处理相同
       writeLeafBlockPackedValues(
           out, commonPrefixLengths, count, sortedDim, packedValues, leafCardinality);
-    } else {
+    } else {// 内部节点
       // inner node
 
       final int splitDim;
       // compute the split dimension and partition around it
       if (config.numIndexDims == 1) {
+        // 分割左右子树的维度
         splitDim = 0;
       } else {
         // for dimensions > 2 we recompute the bounds for the current inner node to help the
@@ -1704,17 +1847,23 @@ public class BKDWriter implements Closeable {
         if (numLeaves != leafBlockFPs.length
             && config.numIndexDims > 2
             && Arrays.stream(parentSplits).sum() % SPLITS_BEFORE_EXACT_BOUNDS == 0) {
+          // 计算当前的所有的point的各个维度的最大值和最小值
           computePackedValueBounds(
               reader, from, to, minPackedValue, maxPackedValue, scratchBytesRef1);
         }
+        // 寻找的策略有两种，具体方法我们前面介绍过了
         splitDim = split(minPackedValue, maxPackedValue, parentSplits);
       }
 
       // How many leaves will be in the left tree:
+      // 计算左子树的叶子节点个数，方法我们前面介绍过了
       int numLeftLeafNodes = getNumLeftLeafNodes(numLeaves);
+
       // How many points will be in the left tree:
+      // 左子树中有多少个point
       final int mid = from + numLeftLeafNodes * config.maxPointsInLeafNode;
 
+      // 每个维度的最小值和最大值的最长公共前缀
       final int commonPrefixLen =
           commonPrefixComparator.compare(
               minPackedValue,
@@ -1722,6 +1871,7 @@ public class BKDWriter implements Closeable {
               maxPackedValue,
               splitDim * config.bytesPerDim);
 
+      // 分裂左右子树
       MutablePointsReaderUtils.partition(
           config,
           maxDoc,
@@ -1736,10 +1886,16 @@ public class BKDWriter implements Closeable {
 
       final int rightOffset = leavesOffset + numLeftLeafNodes;
       final int splitOffset = rightOffset - 1;
+
       // set the split value
+      // 分裂的value在splitPackedValues的位置
       final int address = splitOffset * config.bytesPerDim;
+
+      // 记录分裂的维度
       splitDimensionValues[splitOffset] = (byte) splitDim;
       reader.getValue(mid, scratchBytesRef1);
+
+      // 记录分裂的value
       System.arraycopy(
           scratchBytesRef1.bytes,
           scratchBytesRef1.offset + splitDim * config.bytesPerDim,
@@ -1747,6 +1903,7 @@ public class BKDWriter implements Closeable {
           address,
           config.bytesPerDim);
 
+      // 更新左右子树各个维度的最大值和最小值
       byte[] minSplitPackedValue =
           ArrayUtil.copyOfSubArray(minPackedValue, 0, config.packedIndexBytesLength);
       byte[] maxSplitPackedValue =
@@ -1765,6 +1922,7 @@ public class BKDWriter implements Closeable {
           config.bytesPerDim);
 
       // recurse
+      // 递归处理
       parentSplits[splitDim]++;
       build(
           leavesOffset,

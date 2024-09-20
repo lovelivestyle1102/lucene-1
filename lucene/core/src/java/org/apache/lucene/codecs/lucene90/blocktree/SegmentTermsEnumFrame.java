@@ -52,10 +52,13 @@ final class SegmentTermsEnumFrame {
   final ByteArrayDataInput suffixLengthsReader;
 
   byte[] statBytes = new byte[64];
+
   int statsSingletonRunLength = 0;
+
   final ByteArrayDataInput statsReader = new ByteArrayDataInput();
 
   byte[] floorData = new byte[32];
+
   final ByteArrayDataInput floorDataReader = new ByteArrayDataInput();
 
   // Length of prefix shared by all terms in this block
@@ -78,6 +81,7 @@ final class SegmentTermsEnumFrame {
   long lastSubFP;
 
   int nextFloorLabel;
+
   int numFollowFloorBlocks;
 
   // Next term to decode metaData; we decode metaData
@@ -91,6 +95,7 @@ final class SegmentTermsEnumFrame {
 
   // metadata buffer
   byte[] bytes = new byte[32];
+
   final ByteArrayDataInput bytesReader = new ByteArrayDataInput();
 
   private final SegmentTermsEnum ste;
@@ -156,10 +161,15 @@ final class SegmentTermsEnumFrame {
     }
     // System.out.println("blc=" + blockLoadCount);
 
+    //跳到指定位置，为后面读取指定数据准备
     ste.in.seek(fp);
+
     int code = ste.in.readVInt();
+
     entCount = code >>> 1;
+
     assert entCount > 0;
+
     isLastInFloor = (code & 1) != 0;
 
     assert arc == null || (isLastInFloor || isFloor)
@@ -171,9 +181,12 @@ final class SegmentTermsEnumFrame {
     // we could have simple array of offsets
 
     final long startSuffixFP = ste.in.getFilePointer();
+
     // term suffixes:
     final long codeL = ste.in.readVLong();
+
     isLeafBlock = (codeL & 0x04) != 0;
+
     final int numSuffixBytes = (int) (codeL >>> 3);
     if (suffixBytes.length < numSuffixBytes) {
       suffixBytes = new byte[ArrayUtil.oversize(numSuffixBytes, 1)];
@@ -183,21 +196,28 @@ final class SegmentTermsEnumFrame {
     } catch (IllegalArgumentException e) {
       throw new CorruptIndexException(e.getMessage(), ste.in, e);
     }
+
     compressionAlg.read(ste.in, suffixBytes, numSuffixBytes);
+
     suffixesReader.reset(suffixBytes, 0, numSuffixBytes);
 
     int numSuffixLengthBytes = ste.in.readVInt();
+
     final boolean allEqual = (numSuffixLengthBytes & 0x01) != 0;
+
     numSuffixLengthBytes >>>= 1;
     if (suffixLengthBytes.length < numSuffixLengthBytes) {
       suffixLengthBytes = new byte[ArrayUtil.oversize(numSuffixLengthBytes, 1)];
     }
+
     if (allEqual) {
       Arrays.fill(suffixLengthBytes, 0, numSuffixLengthBytes, ste.in.readByte());
     } else {
       ste.in.readBytes(suffixLengthBytes, 0, numSuffixLengthBytes);
     }
+
     suffixLengthsReader.reset(suffixLengthBytes, 0, numSuffixLengthBytes);
+
     totalSuffixBytes = ste.in.getFilePointer() - startSuffixFP;
 
     /*if (DEBUG) {
@@ -210,11 +230,15 @@ final class SegmentTermsEnumFrame {
 
     // stats
     int numBytes = ste.in.readVInt();
+
     if (statBytes.length < numBytes) {
       statBytes = new byte[ArrayUtil.oversize(numBytes, 1)];
     }
+
     ste.in.readBytes(statBytes, 0, numBytes);
+
     statsReader.reset(statBytes, 0, numBytes);
+
     statsSingletonRunLength = 0;
     metaDataUpto = 0;
 
@@ -226,10 +250,13 @@ final class SegmentTermsEnumFrame {
     // that's rare so won't help much
     // metadata
     numBytes = ste.in.readVInt();
+
     if (bytes.length < numBytes) {
       bytes = new byte[ArrayUtil.oversize(numBytes, 1)];
     }
+
     ste.in.readBytes(bytes, 0, numBytes);
+
     bytesReader.reset(bytes, 0, numBytes);
 
     // Sub-blocks of a single floor block are always
@@ -438,7 +465,9 @@ final class SegmentTermsEnumFrame {
 
     // lazily catch up on metadata decode:
     final int limit = getTermBlockOrd();
+
     boolean absolute = metaDataUpto == 0;
+
     assert limit > 0;
 
     // TODO: better API would be "jump straight to term=N"???
@@ -476,8 +505,10 @@ final class SegmentTermsEnumFrame {
       ste.fr.parent.postingsReader.decodeTerm(bytesReader, ste.fr.fieldInfo, state, absolute);
 
       metaDataUpto++;
+
       absolute = false;
     }
+
     state.termBlockOrd = metaDataUpto;
   }
 
@@ -561,6 +592,7 @@ final class SegmentTermsEnumFrame {
     assert nextEnt != -1;
 
     ste.termExists = true;
+
     subCode = 0;
 
     if (nextEnt == entCount) {
@@ -590,6 +622,7 @@ final class SegmentTermsEnumFrame {
       // }
 
       startBytePos = suffixesReader.getPosition();
+
       suffixesReader.skipBytes(suffix);
 
       // Loop over bytes in the suffix, comparing to the target
@@ -620,7 +653,9 @@ final class SegmentTermsEnumFrame {
         // sub-block from the start:
 
         assert ste.termExists;
+
         fillTerm();
+
         // if (DEBUG) System.out.println("        found!");
         return SeekStatus.FOUND;
       }

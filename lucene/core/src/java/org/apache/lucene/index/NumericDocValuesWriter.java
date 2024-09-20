@@ -31,19 +31,30 @@ import org.apache.lucene.util.packed.PackedLongValues;
 class NumericDocValuesWriter extends DocValuesWriter<NumericDocValues> {
 
   private final PackedLongValues.Builder pending;
+
   private PackedLongValues finalValues;
+
   private final Counter iwBytesUsed;
+
   private long bytesUsed;
+
   private DocsWithFieldSet docsWithField;
+
   private final FieldInfo fieldInfo;
+
   private int lastDocID = -1;
 
   NumericDocValuesWriter(FieldInfo fieldInfo, Counter iwBytesUsed) {
     pending = PackedLongValues.deltaPackedBuilder(PackedInts.COMPACT);
+
     docsWithField = new DocsWithFieldSet();
+
     bytesUsed = pending.ramBytesUsed() + docsWithField.ramBytesUsed();
+
     this.fieldInfo = fieldInfo;
+
     this.iwBytesUsed = iwBytesUsed;
+
     iwBytesUsed.addAndGet(bytesUsed);
   }
 
@@ -56,6 +67,7 @@ class NumericDocValuesWriter extends DocValuesWriter<NumericDocValues> {
     }
 
     pending.add(value);
+
     docsWithField.add(docID);
 
     updateBytesUsed();
@@ -80,14 +92,20 @@ class NumericDocValuesWriter extends DocValuesWriter<NumericDocValues> {
   static NumericDVs sortDocValues(int maxDoc, Sorter.DocMap sortMap, NumericDocValues oldDocValues)
       throws IOException {
     FixedBitSet docsWithField = new FixedBitSet(maxDoc);
+
     long[] values = new long[maxDoc];
+
     while (true) {
       int docID = oldDocValues.nextDoc();
+
       if (docID == NO_MORE_DOCS) {
         break;
       }
+
       int newDocID = sortMap.oldToNew(docID);
+
       docsWithField.set(newDocID);
+
       values[newDocID] = oldDocValues.longValue();
     }
     return new NumericDVs(values, docsWithField);
@@ -99,10 +117,13 @@ class NumericDocValuesWriter extends DocValuesWriter<NumericDocValues> {
     if (finalValues == null) {
       finalValues = pending.build();
     }
+
     final NumericDVs sorted;
+
     if (sortMap != null) {
       NumericDocValues oldValues =
           new BufferedNumericDocValues(finalValues, docsWithField.iterator());
+
       sorted = sortDocValues(state.segmentInfo.maxDoc(), sortMap, oldValues);
     } else {
       sorted = null;

@@ -69,12 +69,15 @@ public class SnapshotDeletionPolicy extends IndexDeletionPolicy {
   @Override
   public synchronized void onInit(List<? extends IndexCommit> commits) throws IOException {
     initCalled = true;
+
     primary.onInit(wrapCommits(commits));
+
     for (IndexCommit commit : commits) {
       if (refCounts.containsKey(commit.getGeneration())) {
         indexCommits.put(commit.getGeneration(), commit);
       }
     }
+
     if (!commits.isEmpty()) {
       lastCommit = commits.get(commits.size() - 1);
     }

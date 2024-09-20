@@ -49,15 +49,24 @@ import org.apache.lucene.util.Version;
  */
 public class ParallelLeafReader extends LeafReader {
   private final FieldInfos fieldInfos;
+
   private final LeafReader[] parallelReaders, storedFieldsReaders;
+
   private final Set<LeafReader> completeReaderSet =
       Collections.newSetFromMap(new IdentityHashMap<LeafReader, Boolean>());
+
   private final boolean closeSubReaders;
+
   private final int maxDoc, numDocs;
+
   private final boolean hasDeletions;
+
   private final LeafMetaData metaData;
+
   private final SortedMap<String, LeafReader> tvFieldToReader = new TreeMap<>();
+
   private final SortedMap<String, LeafReader> fieldToReader = new TreeMap<>(); // TODO needn't sort?
+
   private final Map<String, LeafReader> termsFieldToReader = new HashMap<>();
 
   /**

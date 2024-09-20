@@ -96,10 +96,15 @@ public final class FieldsIndexWriter implements Closeable {
 
   void writeIndex(int numDocs, long startPointer) throws IOException {
     assert startPointer >= previousFP;
+
     docsOut.writeVInt(numDocs);
+
     filePointersOut.writeVLong(startPointer - previousFP);
+
     previousFP = startPointer;
+
     totalDocs += numDocs;
+
     totalChunks++;
   }
 

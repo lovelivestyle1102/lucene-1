@@ -1495,12 +1495,15 @@ public abstract class LuceneTestCase extends Assert {
 
     if (bare) {
       BaseDirectoryWrapper base = new RawDirectoryWrapper(directory);
+
       closeAfterSuite(new CloseableDirectory(base, suiteFailureMarker));
+
       return base;
     } else {
       MockDirectoryWrapper mock = new MockDirectoryWrapper(random, directory);
 
       mock.setThrottling(TEST_THROTTLING);
+
       closeAfterSuite(new CloseableDirectory(mock, suiteFailureMarker));
       return mock;
     }

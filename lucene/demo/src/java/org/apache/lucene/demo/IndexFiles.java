@@ -80,10 +80,15 @@ public class IndexFiles implements AutoCloseable {
             + "This indexes the documents in DOCS_PATH, creating a Lucene index"
             + "in INDEX_PATH that can be searched with SearchFiles\n"
             + "IF DICT_PATH contains a KnnVector dictionary, the index will also support KnnVector search";
+
     String indexPath = "index";
+
     String docsPath = null;
+
     String vectorDictSource = null;
+
     boolean create = true;
+
     for (int i = 0; i < args.length; i++) {
       switch (args[i]) {
         case "-index":
@@ -108,10 +113,12 @@ public class IndexFiles implements AutoCloseable {
 
     if (docsPath == null) {
       System.err.println("Usage: " + usage);
+
       System.exit(1);
     }
 
     final Path docDir = Paths.get(docsPath);
+
     if (!Files.isReadable(docDir)) {
       System.out.println(
           "Document directory '"
@@ -121,11 +128,14 @@ public class IndexFiles implements AutoCloseable {
     }
 
     Date start = new Date();
+
     try {
       System.out.println("Indexing to directory '" + indexPath + "'...");
 
       Directory dir = FSDirectory.open(Paths.get(indexPath));
+
       Analyzer analyzer = new StandardAnalyzer();
+
       IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
 
       if (create) {
@@ -145,10 +155,14 @@ public class IndexFiles implements AutoCloseable {
       // iwc.setRAMBufferSizeMB(256.0);
 
       KnnVectorDict vectorDictInstance = null;
+
       long vectorDictSize = 0;
+
       if (vectorDictSource != null) {
         KnnVectorDict.build(Paths.get(vectorDictSource), dir, KNN_DICT);
+
         vectorDictInstance = new KnnVectorDict(dir, KNN_DICT);
+
         vectorDictSize = vectorDictInstance.ramBytesUsed();
       }
 
@@ -168,6 +182,7 @@ public class IndexFiles implements AutoCloseable {
       }
 
       Date end = new Date();
+
       try (IndexReader reader = DirectoryReader.open(dir)) {
         System.out.println(
             "Indexed "
@@ -235,6 +250,7 @@ public class IndexFiles implements AutoCloseable {
       // the field into separate words and don't index term frequency
       // or positional information:
       Field pathField = new StringField("path", file.toString(), Field.Store.YES);
+
       doc.add(pathField);
 
       // Add the last modified date of the file a field named "modified".
@@ -268,12 +284,14 @@ public class IndexFiles implements AutoCloseable {
       if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
         // New index, so we just add the document (no old document can be there):
         System.out.println("adding " + file);
+
         writer.addDocument(doc);
       } else {
         // Existing index (an old copy of this document may have been indexed) so
         // we use updateDocument instead to replace the old one matching the exact
         // path, if present:
         System.out.println("updating " + file);
+
         writer.updateDocument(new Term("path", file.toString()), doc);
       }
     }

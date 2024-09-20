@@ -57,11 +57,14 @@ public abstract class DocTermsIndexDocValues extends FunctionValues {
       throw new IllegalArgumentException(
           "docs were sent out-of-order: lastDocID=" + lastDocID + " vs docID=" + doc);
     }
+
     lastDocID = doc;
+
     int curDocID = termsIndex.docID();
     if (doc > curDocID) {
       curDocID = termsIndex.advance(doc);
     }
+
     if (doc == curDocID) {
       return termsIndex.ordValue();
     } else {

@@ -36,6 +36,7 @@ public final class BytesRef implements Comparable<BytesRef>, Cloneable {
   /** An empty byte array for convenience */
   public static final byte[] EMPTY_BYTES = new byte[0];
 
+  //term字节码
   /** The contents of the BytesRef. Should never be {@code null}. */
   public byte[] bytes;
 

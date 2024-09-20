@@ -80,7 +80,10 @@ public abstract class DelegatingAnalyzerWrapper extends AnalyzerWrapper {
     @Override
     public TokenStreamComponents getReusableComponents(Analyzer analyzer, String fieldName) {
       if (analyzer == wrapper) {
+        //获取分词器
         final Analyzer wrappedAnalyzer = wrapper.getWrappedAnalyzer(fieldName);
+
+        //
         return wrappedAnalyzer.getReuseStrategy().getReusableComponents(wrappedAnalyzer, fieldName);
       } else {
         return fallbackStrategy.getReusableComponents(analyzer, fieldName);

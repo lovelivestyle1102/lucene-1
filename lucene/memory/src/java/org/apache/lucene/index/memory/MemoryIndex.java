@@ -163,16 +163,21 @@ public class MemoryIndex {
 
   private static final boolean DEBUG = false;
 
+
   /** info for each field: Map&lt;String fieldName, Info field&gt; */
   private final SortedMap<String, Info> fields = new TreeMap<>();
 
   private final boolean storeOffsets;
+
   private final boolean storePayloads;
 
   private final ByteBlockPool byteBlockPool;
+
   private final IntBlockPool intBlockPool;
+
   //  private final IntBlockPool.SliceReader postingsReader;
   private final IntBlockPool.SliceWriter postingsWriter;
+
   private final BytesRefArray payloadsBytesRefs; // non null only when storePayloads
 
   private Counter bytesUsed;
@@ -222,30 +227,41 @@ public class MemoryIndex {
    */
   MemoryIndex(boolean storeOffsets, boolean storePayloads, long maxReusedBytes) {
     this.storeOffsets = storeOffsets;
+
     this.storePayloads = storePayloads;
+
     this.defaultFieldType.setIndexOptions(
         storeOffsets
             ? IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS
             : IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+
     this.defaultFieldType.setStoreTermVectors(true);
+
     this.bytesUsed = Counter.newCounter();
+
     final int maxBufferedByteBlocks = (int) ((maxReusedBytes / 2) / ByteBlockPool.BYTE_BLOCK_SIZE);
+
     final int maxBufferedIntBlocks =
         (int)
             ((maxReusedBytes - (maxBufferedByteBlocks * ByteBlockPool.BYTE_BLOCK_SIZE))
                 / (IntBlockPool.INT_BLOCK_SIZE * Integer.BYTES));
+
     assert (maxBufferedByteBlocks * ByteBlockPool.BYTE_BLOCK_SIZE)
             + (maxBufferedIntBlocks * IntBlockPool.INT_BLOCK_SIZE * Integer.BYTES)
         <= maxReusedBytes;
+
     byteBlockPool =
         new ByteBlockPool(
             new RecyclingByteBlockAllocator(
                 ByteBlockPool.BYTE_BLOCK_SIZE, maxBufferedByteBlocks, bytesUsed));
+
     intBlockPool =
         new IntBlockPool(
             new RecyclingIntBlockAllocator(
                 IntBlockPool.INT_BLOCK_SIZE, maxBufferedIntBlocks, bytesUsed));
+
     postingsWriter = new SliceWriter(intBlockPool);
+
     // TODO refactor BytesRefArray to allow us to apply maxReusedBytes option
     payloadsBytesRefs = storePayloads ? new BytesRefArray(bytesUsed) : null;
   }
@@ -262,10 +278,13 @@ public class MemoryIndex {
    */
   public void addField(String fieldName, String text, Analyzer analyzer) {
     if (fieldName == null) throw new IllegalArgumentException("fieldName must not be null");
+
     if (text == null) throw new IllegalArgumentException("text must not be null");
+
     if (analyzer == null) throw new IllegalArgumentException("analyzer must not be null");
 
     TokenStream stream = analyzer.tokenStream(fieldName, text);
+
     storeTerms(
         getInfo(fieldName, defaultFieldType),
         stream,
@@ -320,9 +339,11 @@ public class MemoryIndex {
       boolean storePayloads,
       long maxReusedBytes) {
     MemoryIndex mi = new MemoryIndex(storeOffsets, storePayloads, maxReusedBytes);
+
     for (IndexableField field : document) {
       mi.addField(field, analyzer);
     }
+
     return mi;
   }
 
@@ -470,15 +491,18 @@ public class MemoryIndex {
     if (frozen) {
       throw new IllegalArgumentException("Cannot call addField() when MemoryIndex is frozen");
     }
+
     if (fieldName == null) {
       throw new IllegalArgumentException("fieldName must not be null");
     }
+
     Info info = fields.get(fieldName);
     if (info == null) {
       fields.put(
           fieldName,
           info = new Info(createFieldInfo(fieldName, fields.size(), fieldType), byteBlockPool));
     }
+
     if (fieldType.pointDimensionCount() != info.fieldInfo.getPointDimensionCount()) {
       if (fieldType.pointDimensionCount() > 0)
         info.fieldInfo.setPointDimensions(
@@ -486,6 +510,7 @@ public class MemoryIndex {
             fieldType.pointIndexDimensionCount(),
             fieldType.pointNumBytes());
     }
+
     if (fieldType.docValuesType() != info.fieldInfo.getDocValuesType()) {
       if (fieldType.docValuesType() != DocValuesType.NONE)
         info.fieldInfo.setDocValuesType(fieldType.docValuesType());
@@ -1219,6 +1244,7 @@ public class MemoryIndex {
   private final class MemoryIndexReader extends LeafReader {
 
     private final MemoryFields memoryFields = new MemoryFields(fields);
+
     private final FieldInfos fieldInfos;
 
     private MemoryIndexReader() {
@@ -1392,6 +1418,7 @@ public class MemoryIndex {
       @Override
       public Terms terms(final String field) {
         final Info info = fields.get(field);
+
         if (info == null || info.numTokens <= 0) {
           return null;
         }
@@ -1573,13 +1600,21 @@ public class MemoryIndex {
     private class MemoryPostingsEnum extends PostingsEnum {
 
       private final SliceReader sliceReader;
+
       private int posUpto; // for assert
+
       private boolean hasNext;
+
       private int doc = -1;
+
       private int freq;
+
       private int startOffset;
+
       private int endOffset;
+
       private int payloadIndex;
+
       private final BytesRefBuilder payloadBuilder; // only non-null when storePayloads
 
       public MemoryPostingsEnum() {
@@ -1794,7 +1829,7 @@ public class MemoryIndex {
   private static final class SliceByteStartArray extends DirectBytesStartArray {
     int[] start; // the start offset in the IntBlockPool per term
     int[] end; // the end pointer in the IntBlockPool for the postings slice per term
-    int[] freq; // the term frequency
+    int[] freq; // the term frequency词频
 
     public SliceByteStartArray(int initSize) {
       super(initSize);

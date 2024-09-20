@@ -46,7 +46,9 @@ import org.apache.lucene.index.SegmentWriteState;
 public final class Lucene90PointsFormat extends PointsFormat {
 
   static final String DATA_CODEC_NAME = "Lucene90PointsFormatData";
+
   static final String INDEX_CODEC_NAME = "Lucene90PointsFormatIndex";
+
   static final String META_CODEC_NAME = "Lucene90PointsFormatMeta";
 
   /** Filename extension for the leaf blocks */
@@ -59,6 +61,7 @@ public final class Lucene90PointsFormat extends PointsFormat {
   public static final String META_EXTENSION = "kdm";
 
   static final int VERSION_START = 0;
+
   static final int VERSION_CURRENT = VERSION_START;
 
   /** Sole constructor */

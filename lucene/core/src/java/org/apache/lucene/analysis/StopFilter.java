@@ -94,6 +94,7 @@ public class StopFilter extends FilteringTokenFilter {
   /** Returns the next input Token whose term() is not a stop word. */
   @Override
   protected boolean accept() {
+    //去掉停用词
     return !stopWords.contains(termAtt.buffer(), 0, termAtt.length());
   }
 }

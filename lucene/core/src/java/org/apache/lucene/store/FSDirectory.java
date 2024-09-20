@@ -211,12 +211,15 @@ public abstract class FSDirectory extends BaseDirectory {
   @Override
   public IndexOutput createOutput(String name, IOContext context) throws IOException {
     ensureOpen();
+
     maybeDeletePendingFiles();
+
     // If this file was pending delete, we are now bringing it back to life:
     if (pendingDeletes.remove(name)) {
       privateDeleteFile(name, true); // try again to delete it - this is best effort
       pendingDeletes.remove(name); // watch out - if the delete fails it put
     }
+
     return new FSIndexOutput(name);
   }
 
@@ -332,8 +335,10 @@ public abstract class FSDirectory extends BaseDirectory {
       // This is a silly heuristic to try to avoid O(N^2), where N = number of files pending
       // deletion, behaviour on Windows:
       int count = opsSinceLastDelete.incrementAndGet();
+
       if (count >= pendingDeletes.size()) {
         opsSinceLastDelete.addAndGet(-count);
+
         deletePendingFiles();
       }
     }
@@ -342,6 +347,7 @@ public abstract class FSDirectory extends BaseDirectory {
   private void privateDeleteFile(String name, boolean isPendingDelete) throws IOException {
     try {
       Files.delete(directory.resolve(name));
+
       pendingDeletes.remove(name);
     } catch (NoSuchFileException | FileNotFoundException e) {
       // We were asked to delete a non-existent file:

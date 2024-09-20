@@ -61,7 +61,9 @@ import org.apache.lucene.util.packed.DirectWriter;
 final class Lucene90DocValuesConsumer extends DocValuesConsumer {
 
   IndexOutput data, meta;
+
   final int maxDoc;
+
   private byte[] termsDictBuffer;
 
   /** expert: Creates a new writer */
@@ -73,29 +75,38 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
       String metaExtension)
       throws IOException {
     this.termsDictBuffer = new byte[1 << 14];
+
     boolean success = false;
+
     try {
       String dataName =
           IndexFileNames.segmentFileName(
               state.segmentInfo.name, state.segmentSuffix, dataExtension);
+
       data = state.directory.createOutput(dataName, state.context);
+
       CodecUtil.writeIndexHeader(
           data,
           dataCodec,
           Lucene90DocValuesFormat.VERSION_CURRENT,
           state.segmentInfo.getId(),
           state.segmentSuffix);
+
       String metaName =
           IndexFileNames.segmentFileName(
               state.segmentInfo.name, state.segmentSuffix, metaExtension);
+
       meta = state.directory.createOutput(metaName, state.context);
+
       CodecUtil.writeIndexHeader(
           meta,
           metaCodec,
           Lucene90DocValuesFormat.VERSION_CURRENT,
           state.segmentInfo.getId(),
           state.segmentSuffix);
+
       maxDoc = state.segmentInfo.maxDoc();
+
       success = true;
     } finally {
       if (!success) {
@@ -130,6 +141,7 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
   public void addNumericField(FieldInfo field, DocValuesProducer valuesProducer)
       throws IOException {
     meta.writeInt(field.number);
+
     meta.writeByte(Lucene90DocValuesFormat.NUMERIC);
 
     writeValues(
@@ -188,18 +200,26 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
   private long[] writeValues(FieldInfo field, DocValuesProducer valuesProducer, boolean ords)
       throws IOException {
     SortedNumericDocValues values = valuesProducer.getSortedNumeric(field);
+
     final long firstValue;
     if (values.nextDoc() != DocIdSetIterator.NO_MORE_DOCS) {
       firstValue = values.nextValue();
     } else {
       firstValue = 0L;
     }
+
     values = valuesProducer.getSortedNumeric(field);
+
     int numDocsWithValue = 0;
+
     MinMaxTracker minMax = new MinMaxTracker();
+
     MinMaxTracker blockMinMax = new MinMaxTracker();
+
     long gcd = 0;
+
     Set<Long> uniqueValues = ords ? null : new HashSet<>();
+
     for (int doc = values.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = values.nextDoc()) {
       for (int i = 0, count = values.docValueCount(); i < count; ++i) {
         long v = values.nextValue();
@@ -218,6 +238,7 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
         blockMinMax.update(v);
         if (blockMinMax.numValues == NUMERIC_BLOCK_SIZE) {
           minMax.update(blockMinMax);
+
           blockMinMax.nextBlock();
         }
 
@@ -230,7 +251,9 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
     }
 
     minMax.update(blockMinMax);
+
     minMax.finish();
+
     blockMinMax.finish();
 
     if (ords && minMax.numValues > 0) {
@@ -245,8 +268,11 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
     }
 
     final long numValues = minMax.numValues;
+
     long min = minMax.min;
+
     final long max = minMax.max;
+
     assert blockMinMax.spaceInBits <= minMax.spaceInBits;
 
     if (numDocsWithValue == 0) { // meta[-2, 0]: No documents with values
@@ -271,8 +297,11 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
     }
 
     meta.writeLong(numValues);
+
     final int numBitsPerValue;
+
     boolean doBlocks = false;
+
     Map<Long, Integer> encode = null;
     if (min >= max) { // meta[-1]: All values are 0
       numBitsPerValue = 0;
@@ -283,16 +312,22 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
           && DirectWriter.unsignedBitsRequired(uniqueValues.size() - 1)
               < DirectWriter.unsignedBitsRequired((max - min) / gcd)) {
         numBitsPerValue = DirectWriter.unsignedBitsRequired(uniqueValues.size() - 1);
+
         final Long[] sortedUniqueValues = uniqueValues.toArray(new Long[0]);
+
         Arrays.sort(sortedUniqueValues);
+
         meta.writeInt(sortedUniqueValues.length); // tablesize
+
         for (Long v : sortedUniqueValues) {
           meta.writeLong(v); // table[] entry
         }
+
         encode = new HashMap<>();
         for (int i = 0; i < sortedUniqueValues.length; ++i) {
           encode.put(sortedUniqueValues[i], i);
         }
+
         min = 0;
         gcd = 1;
       } else {
@@ -300,11 +335,14 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
         // we do blocks if that appears to save 10+% storage
         doBlocks =
             minMax.spaceInBits > 0 && (double) blockMinMax.spaceInBits / minMax.spaceInBits <= 0.9;
+
         if (doBlocks) {
           numBitsPerValue = 0xFF;
+
           meta.writeInt(-2 - NUMERIC_BLOCK_SHIFT); // tablesize
         } else {
           numBitsPerValue = DirectWriter.unsignedBitsRequired((max - min) / gcd);
+
           if (gcd == 1
               && min > 0
               && DirectWriter.unsignedBitsRequired(max)
@@ -317,19 +355,28 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
     }
 
     meta.writeByte((byte) numBitsPerValue);
+
     meta.writeLong(min);
+
     meta.writeLong(gcd);
+
     long startOffset = data.getFilePointer();
+
     meta.writeLong(startOffset); // valueOffset
+
     long jumpTableOffset = -1;
+
     if (doBlocks) {
       jumpTableOffset = writeValuesMultipleBlocks(valuesProducer.getSortedNumeric(field), gcd);
     } else if (numBitsPerValue != 0) {
       writeValuesSingleBlock(
           valuesProducer.getSortedNumeric(field), numValues, numBitsPerValue, min, gcd, encode);
     }
+
     meta.writeLong(data.getFilePointer() - startOffset); // valuesLength
+
     meta.writeLong(jumpTableOffset);
+
     return new long[] {numDocsWithValue, numValues};
   }
 
@@ -359,33 +406,47 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
   private long writeValuesMultipleBlocks(SortedNumericDocValues values, long gcd)
       throws IOException {
     long[] offsets = new long[ArrayUtil.oversize(1, Long.BYTES)];
+
     int offsetsIndex = 0;
+
     final long[] buffer = new long[NUMERIC_BLOCK_SIZE];
+
     final ByteBuffersDataOutput encodeBuffer = ByteBuffersDataOutput.newResettableInstance();
+
     int upTo = 0;
     for (int doc = values.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = values.nextDoc()) {
       for (int i = 0, count = values.docValueCount(); i < count; ++i) {
         buffer[upTo++] = values.nextValue();
+
         if (upTo == NUMERIC_BLOCK_SIZE) {
           offsets = ArrayUtil.grow(offsets, offsetsIndex + 1);
+
           offsets[offsetsIndex++] = data.getFilePointer();
+
           writeBlock(buffer, NUMERIC_BLOCK_SIZE, gcd, encodeBuffer);
+
           upTo = 0;
         }
       }
     }
+
     if (upTo > 0) {
       offsets = ArrayUtil.grow(offsets, offsetsIndex + 1);
+
       offsets[offsetsIndex++] = data.getFilePointer();
+
       writeBlock(buffer, upTo, gcd, encodeBuffer);
     }
 
     // All blocks has been written. Flush the offset jump-table
     final long offsetsOrigo = data.getFilePointer();
+
     for (int i = 0; i < offsetsIndex; i++) {
       data.writeLong(offsets[i]);
     }
+
     data.writeLong(offsetsOrigo);
+
     return offsetsOrigo;
   }
 
@@ -432,13 +493,20 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
     int maxLength = 0;
     for (int doc = values.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = values.nextDoc()) {
       numDocsWithField++;
+
       BytesRef v = values.binaryValue();
+
       int length = v.length;
+
       data.writeBytes(v.bytes, v.offset, v.length);
+
       minLength = Math.min(length, minLength);
+
       maxLength = Math.max(length, maxLength);
     }
+
     assert numDocsWithField <= maxDoc;
+
     meta.writeLong(data.getFilePointer() - start); // dataLength
 
     if (numDocsWithField == 0) {
@@ -479,8 +547,8 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
       for (int doc = values.nextDoc();
           doc != DocIdSetIterator.NO_MORE_DOCS;
           doc = values.nextDoc()) {
-        addr += values.binaryValue().length;
-        writer.add(addr);
+          addr += values.binaryValue().length;
+          writer.add(addr);
       }
       writer.finish();
       meta.writeLong(data.getFilePointer() - start);
@@ -538,6 +606,7 @@ final class Lucene90DocValuesConsumer extends DocValuesConsumer {
           }
         },
         true);
+
     addTermsDict(DocValues.singleton(valuesProducer.getSorted(field)));
   }
 

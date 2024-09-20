@@ -29,17 +29,25 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
   private TermVectorsPostingsArray termVectorsPostingsArray;
 
   private final TermVectorsConsumer termsWriter;
+
   private final FieldInvertState fieldState;
+
   private final FieldInfo fieldInfo;
 
   private boolean doVectors;
+
   private boolean doVectorPositions;
+
   private boolean doVectorOffsets;
+
   private boolean doVectorPayloads;
 
   private OffsetAttribute offsetAttribute;
+
   private PayloadAttribute payloadAttribute;
+
   private TermFrequencyAttribute termFreqAtt;
+
   private final ByteBlockPool termBytePool;
 
   private boolean hasPayloads; // if enabled, and we actually saw any for this field
@@ -55,9 +63,13 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
         null,
         fieldInfo.name,
         fieldInfo.getIndexOptions());
+
     this.termsWriter = termsHash;
+
     this.fieldInfo = fieldInfo;
+
     this.fieldState = invertState;
+
     termBytePool = termsHash.termBytePool;
   }
 
@@ -70,6 +82,7 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
     if (!doVectors || getNumTerms() == 0) {
       return;
     }
+
     termsWriter.addFieldToFlush(this);
   }
 
@@ -91,35 +104,44 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
     // our hash into the DocWriter.
 
     TermVectorsPostingsArray postings = termVectorsPostingsArray;
+
     final TermVectorsWriter tv = termsWriter.writer;
 
     sortTerms();
+
     final int[] termIDs = getSortedTermIDs();
 
     tv.startField(fieldInfo, numPostings, doVectorPositions, doVectorOffsets, hasPayloads);
 
     final ByteSliceReader posReader = doVectorPositions ? termsWriter.vectorSliceReaderPos : null;
+
     final ByteSliceReader offReader = doVectorOffsets ? termsWriter.vectorSliceReaderOff : null;
 
     for (int j = 0; j < numPostings; j++) {
       final int termID = termIDs[j];
+
       final int freq = postings.freqs[termID];
 
       // Get BytesRef
       termBytePool.setBytesRef(flushTerm, postings.textStarts[termID]);
+
       tv.startTerm(flushTerm, freq);
 
       if (doVectorPositions || doVectorOffsets) {
         if (posReader != null) {
           initReader(posReader, termID, 0);
         }
+
         if (offReader != null) {
           initReader(offReader, termID, 1);
         }
+
         tv.addProx(freq, posReader, offReader);
       }
+
       tv.finishTerm();
     }
+
     tv.finishField();
 
     reset();
@@ -130,7 +152,9 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
   @Override
   boolean start(IndexableField field, boolean first) {
     super.start(field, first);
+
     termFreqAtt = fieldState.termFreqAttribute;
+
     assert field.fieldType().indexOptions() != IndexOptions.NONE;
 
     if (first) {
@@ -218,6 +242,7 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
     if (doVectors) {
       if (doVectorOffsets) {
         offsetAttribute = fieldState.offsetAttribute;
+
         assert offsetAttribute != null;
       }
 
@@ -235,15 +260,19 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
   void writeProx(TermVectorsPostingsArray postings, int termID) {
     if (doVectorOffsets) {
       int startOffset = fieldState.offset + offsetAttribute.startOffset();
+
       int endOffset = fieldState.offset + offsetAttribute.endOffset();
 
       writeVInt(1, startOffset - postings.lastOffsets[termID]);
+
       writeVInt(1, endOffset - startOffset);
+
       postings.lastOffsets[termID] = endOffset;
     }
 
     if (doVectorPositions) {
       final BytesRef payload;
+
       if (payloadAttribute == null) {
         payload = null;
       } else {
@@ -253,12 +282,16 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
       final int pos = fieldState.position - postings.lastPositions[termID];
       if (payload != null && payload.length > 0) {
         writeVInt(0, (pos << 1) | 1);
+
         writeVInt(0, payload.length);
+
         writeBytes(0, payload.bytes, payload.offset, payload.length);
+
         hasPayloads = true;
       } else {
         writeVInt(0, pos << 1);
       }
+
       postings.lastPositions[termID] = fieldState.position;
     }
   }
@@ -268,7 +301,9 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
     TermVectorsPostingsArray postings = termVectorsPostingsArray;
 
     postings.freqs[termID] = getTermFreq();
+
     postings.lastOffsets[termID] = 0;
+
     postings.lastPositions[termID] = 0;
 
     writeProx(postings, termID);
@@ -285,6 +320,7 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
 
   private int getTermFreq() {
     int freq = termFreqAtt.getTermFrequency();
+
     if (freq != 1) {
       if (doVectorPositions) {
         throw new IllegalArgumentException(
@@ -316,13 +352,18 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
   static final class TermVectorsPostingsArray extends ParallelPostingsArray {
     TermVectorsPostingsArray(int size) {
       super(size);
+
       freqs = new int[size];
+
       lastOffsets = new int[size];
+
       lastPositions = new int[size];
     }
 
     int[] freqs; // How many times this term occurred in the current doc
+
     int[] lastOffsets; // Last offset we saw
+
     int[] lastPositions; // Last position where this term occurred
 
     @Override
@@ -333,12 +374,15 @@ final class TermVectorsConsumerPerField extends TermsHashPerField {
     @Override
     void copyTo(ParallelPostingsArray toArray, int numToCopy) {
       assert toArray instanceof TermVectorsPostingsArray;
+
       TermVectorsPostingsArray to = (TermVectorsPostingsArray) toArray;
 
       super.copyTo(toArray, numToCopy);
 
       System.arraycopy(freqs, 0, to.freqs, 0, size);
+
       System.arraycopy(lastOffsets, 0, to.lastOffsets, 0, size);
+
       System.arraycopy(lastPositions, 0, to.lastPositions, 0, size);
     }
 

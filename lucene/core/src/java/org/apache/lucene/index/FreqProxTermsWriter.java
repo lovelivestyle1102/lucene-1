@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.lucene.codecs.FieldsConsumer;
 import org.apache.lucene.codecs.NormsProducer;
+import org.apache.lucene.codecs.lucene90.Lucene90PostingsWriter;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.store.ByteBuffersDataInput;
 import org.apache.lucene.store.ByteBuffersDataOutput;
@@ -53,23 +54,32 @@ final class FreqProxTermsWriter extends TermsHash {
     // flushed segment:
     if (state.segUpdates != null && state.segUpdates.deleteTerms.size() > 0) {
       Map<Term, Integer> segDeletes = state.segUpdates.deleteTerms;
+
       List<Term> deleteTerms = new ArrayList<>(segDeletes.keySet());
+
       Collections.sort(deleteTerms);
+
       FrozenBufferedUpdates.TermDocsIterator iterator =
           new FrozenBufferedUpdates.TermDocsIterator(fields, true);
+
       for (Term deleteTerm : deleteTerms) {
         DocIdSetIterator postings = iterator.nextTerm(deleteTerm.field(), deleteTerm.bytes());
         if (postings != null) {
           int delDocLimit = segDeletes.get(deleteTerm);
+
           assert delDocLimit < PostingsEnum.NO_MORE_DOCS;
+
           int doc;
           while ((doc = postings.nextDoc()) < delDocLimit) {
             if (state.liveDocs == null) {
               state.liveDocs = new FixedBitSet(state.segmentInfo.maxDoc());
+
               state.liveDocs.set(0, state.segmentInfo.maxDoc());
             }
+
             if (state.liveDocs.get(doc)) {
               state.delCountOnFlush++;
+
               state.liveDocs.clear(doc);
             }
           }
@@ -88,13 +98,20 @@ final class FreqProxTermsWriter extends TermsHash {
     super.flush(fieldsToFlush, state, sortMap, norms);
 
     // Gather all fields that saw any postings:
+    //收集fieldsToFlush，并将TermsHashPerField强转为FreqProxTermsWriterPerField
     List<FreqProxTermsWriterPerField> allFields = new ArrayList<>();
 
+    //遍历处理
     for (TermsHashPerField f : fieldsToFlush.values()) {
       final FreqProxTermsWriterPerField perField = (FreqProxTermsWriterPerField) f;
+
+      //有写入term
       if (perField.getNumTerms() > 0) {
+        // 对字段中的term排序，这是因为term会使用FST来存储，FST的输入需要有序  ！！！！
         perField.sortTerms();
+
         assert perField.indexOptions != IndexOptions.NONE;
+
         allFields.add(perField);
       }
     }
@@ -102,8 +119,13 @@ final class FreqProxTermsWriter extends TermsHash {
     // Sort by field name
     CollectionUtil.introSort(allFields);
 
+    // 这里把所有需要处理的  FreqProxTermsWriterPerField 封装到 FreqProxFields中，
+    // 后面读取都需要借助  FreqProxFields，这就是本文要介绍的内容。
     Fields fields = new FreqProxFields(allFields);
+
+    // 处理删除逻辑，以后介绍
     applyDeletes(state, fields);
+
     if (sortMap != null) {
       final Sorter.DocMap docMap = sortMap;
       final FieldInfos infos = state.fieldInfos;
@@ -122,10 +144,15 @@ final class FreqProxTermsWriter extends TermsHash {
           };
     }
 
+    //Lucene90PostingsWriter
     FieldsConsumer consumer = state.segmentInfo.getCodec().postingsFormat().fieldsConsumer(state);
+
     boolean success = false;
+
     try {
+      // 最终走到Lucene90BlockTreeTermsWriter#write，以后介绍索引文件生成再说
       consumer.write(fields, norms);
+
       success = true;
     } finally {
       if (success) {
@@ -231,18 +258,24 @@ final class FreqProxTermsWriter extends TermsHash {
     private static final class DocFreqSorter extends TimSorter {
 
       private int[] docs;
+
       private int[] freqs;
+
       private final int[] tmpDocs;
+
       private int[] tmpFreqs;
 
       DocFreqSorter(int maxDoc) {
         super(maxDoc / 64);
+
         this.tmpDocs = new int[maxDoc / 64];
       }
 
       public void reset(int[] docs, int[] freqs) {
         this.docs = docs;
+
         this.freqs = freqs;
+
         if (freqs != null && tmpFreqs == null) {
           tmpFreqs = new int[tmpDocs.length];
         }
@@ -297,11 +330,17 @@ final class FreqProxTermsWriter extends TermsHash {
     }
 
     private final int maxDoc;
+
     private final DocFreqSorter sorter;
+
     private int[] docs;
+
     private int[] freqs;
+
     private int docIt = -1;
+
     private final int upto;
+
     private final boolean withFreqs;
 
     SortingDocsEnum(
@@ -426,8 +465,11 @@ final class FreqProxTermsWriter extends TermsHash {
     private static final class DocOffsetSorter extends TimSorter {
 
       private int[] docs;
+
       private long[] offsets;
+
       private final int[] tmpDocs;
+
       private final long[] tmpOffsets;
 
       public DocOffsetSorter(int maxDoc) {
@@ -482,19 +524,29 @@ final class FreqProxTermsWriter extends TermsHash {
     }
 
     private final int maxDoc;
+
     private final DocOffsetSorter sorter;
+
     private int[] docs;
+
     private long[] offsets;
+
     private final int upto;
 
     private final ByteBuffersDataInput postingInput;
+
     private final boolean storeOffsets;
 
     private int docIt = -1;
+
     private int pos;
+
     private int startOffset = -1;
+
     private int endOffset = -1;
+
     private final BytesRef payload;
+
     private int currFreq;
 
     private final ByteBuffersDataOutput buffer;
@@ -507,8 +559,11 @@ final class FreqProxTermsWriter extends TermsHash {
         boolean storeOffsets)
         throws IOException {
       super(in);
+
       this.maxDoc = maxDoc;
+
       this.storeOffsets = storeOffsets;
+
       if (reuse != null) {
         docs = reuse.docs;
         offsets = reuse.offsets;
@@ -613,11 +668,16 @@ final class FreqProxTermsWriter extends TermsHash {
     @Override
     public int nextDoc() throws IOException {
       if (++docIt >= upto) return DocIdSetIterator.NO_MORE_DOCS;
+
       postingInput.seek(offsets[docIt]);
+
       currFreq = postingInput.readVInt();
+
       // reset variables used in nextPosition
       pos = 0;
+
       endOffset = 0;
+
       return docs[docIt];
     }
 

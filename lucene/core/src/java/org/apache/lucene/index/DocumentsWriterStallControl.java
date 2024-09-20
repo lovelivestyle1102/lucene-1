@@ -21,6 +21,9 @@ import java.util.Map;
 import org.apache.lucene.util.ThreadInterruptedException;
 
 /**
+ *
+ * 就是用来通过阻塞添加/更新的操作来保证写入(indexing)的健康度
+ *
  * Controls the health status of a {@link DocumentsWriter} sessions. This class used to block
  * incoming indexing threads if flushing significantly slower than indexing to ensure the {@link
  * DocumentsWriter}s healthiness. If flushing is significantly slower than indexing the net memory
@@ -35,9 +38,13 @@ import org.apache.lucene.util.ThreadInterruptedException;
  */
 final class DocumentsWriterStallControl {
 
+  //判断当前是否处于停顿状态
   private volatile boolean stalled;
+
   private int numWaiting; // only with assert
+
   private boolean wasStalled; // only with assert
+
   private final Map<Thread, Boolean> waiting = new IdentityHashMap<>(); // only with assert
 
   /**
@@ -65,9 +72,11 @@ final class DocumentsWriterStallControl {
           // don't loop here, higher level logic will re-stall!
           try {
             incWaiters();
+
             // Defensive, in case we have a concurrency bug that fails to .notify/All our thread:
             // just wait for up to 1 second here, and let caller re-stall if it's still needed:
             wait(1000);
+
             decrWaiters();
           } catch (InterruptedException e) {
             throw new ThreadInterruptedException(e);
@@ -83,7 +92,9 @@ final class DocumentsWriterStallControl {
 
   private void incWaiters() {
     numWaiting++;
+
     assert waiting.put(Thread.currentThread(), Boolean.TRUE) == null;
+
     assert numWaiting > 0;
   }
 

@@ -70,7 +70,9 @@ import java.util.List;
  */
 public class Trie {
   List<Row> rows = new ArrayList<>();
+
   List<CharSequence> cmds = new ArrayList<>();
+
   int root;
 
   boolean forward = false;

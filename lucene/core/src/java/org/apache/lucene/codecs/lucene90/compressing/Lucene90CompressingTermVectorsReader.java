@@ -77,39 +77,68 @@ import org.apache.lucene.util.packed.PackedInts;
 public final class Lucene90CompressingTermVectorsReader extends TermVectorsReader {
 
   private final FieldInfos fieldInfos;
+
   final FieldsIndex indexReader;
+
   final IndexInput vectorsStream;
+
   private final int version;
+
   private final int packedIntsVersion;
+
   private final CompressionMode compressionMode;
+
   private final Decompressor decompressor;
+
   private final int chunkSize;
+
   private final int numDocs;
+
   private boolean closed;
+
   private final BlockPackedReaderIterator reader;
+
   private final long numChunks; // number of written blocks
+
   private final long numDirtyChunks; // number of incomplete compressed blocks written
+
   private final long numDirtyDocs; // cumulative number of docs in incomplete chunks
+
   private final long maxPointer; // end of the data section
+
   private BlockState blockState = new BlockState(-1, -1, 0);
 
   // used by clone
   private Lucene90CompressingTermVectorsReader(Lucene90CompressingTermVectorsReader reader) {
     this.fieldInfos = reader.fieldInfos;
+
     this.vectorsStream = reader.vectorsStream.clone();
+
     this.indexReader = reader.indexReader.clone();
+
     this.packedIntsVersion = reader.packedIntsVersion;
+
     this.compressionMode = reader.compressionMode;
+
     this.decompressor = reader.decompressor.clone();
+
     this.chunkSize = reader.chunkSize;
+
     this.numDocs = reader.numDocs;
+
     this.reader =
         new BlockPackedReaderIterator(vectorsStream, packedIntsVersion, PACKED_BLOCK_SIZE, 0);
+
     this.version = reader.version;
+
     this.numChunks = reader.numChunks;
+
     this.numDirtyChunks = reader.numDirtyChunks;
+
     this.numDirtyDocs = reader.numDirtyDocs;
+
     this.maxPointer = reader.maxPointer;
+
     this.closed = false;
   }
 
@@ -876,9 +905,11 @@ public final class Lucene90CompressingTermVectorsReader extends TermVectorsReade
     @Override
     public Terms terms(String field) throws IOException {
       final FieldInfo fieldInfo = fieldInfos.fieldInfo(field);
+
       if (fieldInfo == null) {
         return null;
       }
+
       int idx = -1;
       for (int i = 0; i < fieldNumOffs.length; ++i) {
         if (fieldNums[fieldNumOffs[i]] == fieldInfo.number) {
@@ -891,7 +922,9 @@ public final class Lucene90CompressingTermVectorsReader extends TermVectorsReade
         // no term
         return null;
       }
+
       int fieldOff = 0, fieldLen = -1;
+
       for (int i = 0; i < fieldNumOffs.length; ++i) {
         if (i < idx) {
           fieldOff += fieldLengths[i];
@@ -900,7 +933,9 @@ public final class Lucene90CompressingTermVectorsReader extends TermVectorsReade
           break;
         }
       }
+
       assert fieldLen >= 0;
+
       return new TVTerms(
           numTerms[idx],
           fieldFlags[idx],
@@ -925,7 +960,9 @@ public final class Lucene90CompressingTermVectorsReader extends TermVectorsReade
   private static class TVTerms extends Terms {
 
     private final int numTerms, flags;
+
     private final long totalTermFreq;
+
     private final int[] prefixLengths,
         suffixLengths,
         termFreqs,
@@ -934,6 +971,7 @@ public final class Lucene90CompressingTermVectorsReader extends TermVectorsReade
         startOffsets,
         lengths,
         payloadIndex;
+
     private final BytesRef termBytes, payloadBytes;
 
     TVTerms(
@@ -1031,6 +1069,7 @@ public final class Lucene90CompressingTermVectorsReader extends TermVectorsReade
   private static class TVTermsEnum extends BaseTermsEnum {
 
     private int numTerms, startPos, ord;
+
     private int[] prefixLengths,
         suffixLengths,
         termFreqs,
@@ -1039,8 +1078,11 @@ public final class Lucene90CompressingTermVectorsReader extends TermVectorsReade
         startOffsets,
         lengths,
         payloadIndex;
+
     private ByteArrayDataInput in;
+
     private BytesRef payloads;
+
     private final BytesRef term;
 
     private TVTermsEnum() {

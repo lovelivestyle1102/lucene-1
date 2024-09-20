@@ -52,6 +52,7 @@ class NormValuesWriter {
     }
 
     pending.add(value);
+
     docsWithField.add(docID);
 
     updateBytesUsed();
@@ -70,6 +71,7 @@ class NormValuesWriter {
   public void flush(SegmentWriteState state, Sorter.DocMap sortMap, NormsConsumer normsConsumer)
       throws IOException {
     final PackedLongValues values = pending.build();
+
     final NumericDocValuesWriter.NumericDVs sorted;
     if (sortMap != null) {
       sorted =
@@ -80,6 +82,7 @@ class NormValuesWriter {
     } else {
       sorted = null;
     }
+
     normsConsumer.addNormsField(
         fieldInfo,
         new NormsProducer() {

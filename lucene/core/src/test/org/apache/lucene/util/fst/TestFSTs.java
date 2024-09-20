@@ -28,18 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.lucene.analysis.MockAnalyzer;
 import org.apache.lucene.document.Document;
@@ -311,7 +300,6 @@ public class TestFSTs extends LuceneTestCase {
   // file, up until a doc limit
   @Slow
   public void testRealTerms() throws Exception {
-
     final LineFileDocs docs = new LineFileDocs(random());
     final int numDocs = TEST_NIGHTLY ? atLeast(1000) : atLeast(50);
     MockAnalyzer analyzer = new MockAnalyzer(random());
@@ -643,6 +631,11 @@ public class TestFSTs extends LuceneTestCase {
     }
   }
 
+  private static FSTCompiler<Object> createFSTCompiler(float directAddressingMaxOversizingFactor) {
+    return new FSTCompiler.Builder<>(FST.INPUT_TYPE.BYTE1, NoOutputs.getSingleton())
+            .directAddressingMaxOversizingFactor(directAddressingMaxOversizingFactor)
+            .build();
+  }
   // TODO: try experiment: reverse terms before
   // compressing -- how much smaller?
 
@@ -652,109 +645,42 @@ public class TestFSTs extends LuceneTestCase {
   // java -cp
   // ../build/codecs/classes/java:../test-framework/lib/randomizedtesting-runner-*.jar:../build/core/classes/test:../build/core/classes/test-framework:../build/core/classes/java:../build/test-framework/classes/java:../test-framework/lib/junit-4.10.jar org.apache.lucene.util.fst.TestFSTs /xold/tmp/allTerms3.txt out
   public static void main(String[] args) throws IOException {
-    int prune = 0;
-    int limit = Integer.MAX_VALUE;
-    int inputMode = 0; // utf8
-    boolean storeOrds = false;
-    boolean storeDocFreqs = false;
-    boolean verify = true;
-    boolean noArcArrays = false;
-    Path wordsFileIn = null;
-    Path dirOut = null;
+    String[] inputValues = {"abc", "abs", "solr"};
+//    String[] inputValues = {"中华", "中华民族", "中华民族大家庭"};
+    long[] outputValues = {4L, 7L, 15L};
+    try {
+      final PositiveIntOutputs outputs = PositiveIntOutputs.getSingleton();
 
-    int idx = 0;
-    while (idx < args.length) {
-      if (args[idx].equals("-prune")) {
-        prune = Integer.parseInt(args[1 + idx]);
-        idx++;
-      } else if (args[idx].equals("-limit")) {
-        limit = Integer.parseInt(args[1 + idx]);
-        idx++;
-      } else if (args[idx].equals("-utf8")) {
-        inputMode = 0;
-      } else if (args[idx].equals("-utf32")) {
-        inputMode = 1;
-      } else if (args[idx].equals("-docFreq")) {
-        storeDocFreqs = true;
-      } else if (args[idx].equals("-noArcArrays")) {
-        noArcArrays = true;
-      } else if (args[idx].equals("-ords")) {
-        storeOrds = true;
-      } else if (args[idx].equals("-noverify")) {
-        verify = false;
-      } else if (args[idx].startsWith("-")) {
-        System.err.println("Unrecognized option: " + args[idx]);
-        System.exit(-1);
-      } else {
-        if (wordsFileIn == null) {
-          wordsFileIn = Paths.get(args[idx]);
-        } else if (dirOut == null) {
-          dirOut = Paths.get(args[idx]);
-        } else {
-          System.err.println("Too many arguments, expected: input [output]");
-          System.exit(-1);
-        }
+      // Build an FST mapping BytesRef -> Long
+      final FSTCompiler<Long> fstCompiler = new FSTCompiler<>(FST.INPUT_TYPE.BYTE1, outputs);
+//      FSTCompiler<Object> fstCompiler = createFSTCompiler(FSTCompiler.DIRECT_ADDRESSING_MAX_OVERSIZING_FACTOR);
+      for (int i = 0; i < inputValues.length; i++) {
+        fstCompiler.add(
+                Util.toIntsRef(new BytesRef(inputValues[i]), new IntsRefBuilder()), outputValues[i]);
       }
-      idx++;
+      FST<Long> fst = fstCompiler.compile();
+      Long value = Util.get(fst, new BytesRef("solr") );
+      System.out.println(value);
+    } catch (Exception e) {
+      e.printStackTrace();
     }
+  }
 
-    if (wordsFileIn == null) {
-      System.err.println("No input file.");
-      System.exit(-1);
-    }
-
-    // ord benefits from share, docFreqs don't:
-
-    if (storeOrds && storeDocFreqs) {
-      // Store both ord & docFreq:
-      final PositiveIntOutputs o1 = PositiveIntOutputs.getSingleton();
-      final PositiveIntOutputs o2 = PositiveIntOutputs.getSingleton();
-      final PairOutputs<Long, Long> outputs = new PairOutputs<>(o1, o2);
-      new VisitTerms<PairOutputs.Pair<Long, Long>>(
-          dirOut, wordsFileIn, inputMode, prune, outputs, noArcArrays) {
-        Random rand;
-
-        @Override
-        public PairOutputs.Pair<Long, Long> getOutput(IntsRef input, int ord) {
-          if (ord == 0) {
-            rand = new Random(17);
-          }
-          return outputs.newPair((long) ord, (long) TestUtil.nextInt(rand, 1, 5000));
-        }
-      }.run(limit, verify);
-    } else if (storeOrds) {
-      // Store only ords
-      final PositiveIntOutputs outputs = PositiveIntOutputs.getSingleton();
-      new VisitTerms<Long>(dirOut, wordsFileIn, inputMode, prune, outputs, noArcArrays) {
-        @Override
-        public Long getOutput(IntsRef input, int ord) {
-          return (long) ord;
-        }
-      }.run(limit, verify);
-    } else if (storeDocFreqs) {
-      // Store only docFreq
-      final PositiveIntOutputs outputs = PositiveIntOutputs.getSingleton();
-      new VisitTerms<Long>(dirOut, wordsFileIn, inputMode, prune, outputs, noArcArrays) {
-        Random rand;
-
-        @Override
-        public Long getOutput(IntsRef input, int ord) {
-          if (ord == 0) {
-            rand = new Random(17);
-          }
-          return (long) TestUtil.nextInt(rand, 1, 5000);
-        }
-      }.run(limit, verify);
-    } else {
-      // Store nothing
-      final NoOutputs outputs = NoOutputs.getSingleton();
-      final Object NO_OUTPUT = outputs.getNoOutput();
-      new VisitTerms<Object>(dirOut, wordsFileIn, inputMode, prune, outputs, noArcArrays) {
-        @Override
-        public Object getOutput(IntsRef input, int ord) {
-          return NO_OUTPUT;
-        }
-      }.run(limit, verify);
+  public void testFSTget() throws Exception {
+    String[] inputValues = {"abc", "abs", "absef", "solr", "sonar"};
+    long[] outputValues = {4, 7, 15, 45, 66};
+    try {
+      FSTCompiler<Object> fstCompiler = createFSTCompiler(FSTCompiler.DIRECT_ADDRESSING_MAX_OVERSIZING_FACTOR);
+      for (int i = 0; i < inputValues.length; i++) {
+        fstCompiler.add(
+                Util.toIntsRef(new BytesRef(inputValues[i]), new IntsRefBuilder()), outputValues[i]);
+      }
+      FST<Object> fst = fstCompiler.compile();
+//      long start = System.currentTimeMillis();
+      Object value = Util.get(fst, new BytesRef("solr") );
+      System.out.println(value);
+    } catch (Exception e) {
+      e.printStackTrace();
     }
   }
 

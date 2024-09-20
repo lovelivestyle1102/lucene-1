@@ -88,16 +88,19 @@ public final class Lucene90CompoundFormat extends CompoundFormat {
   @Override
   public void write(Directory dir, SegmentInfo si, IOContext context) throws IOException {
     String dataFile = IndexFileNames.segmentFileName(si.name, "", DATA_EXTENSION);
+
     String entriesFile = IndexFileNames.segmentFileName(si.name, "", ENTRIES_EXTENSION);
 
     try (IndexOutput data = dir.createOutput(dataFile, context);
         IndexOutput entries = dir.createOutput(entriesFile, context)) {
       CodecUtil.writeIndexHeader(data, DATA_CODEC, VERSION_CURRENT, si.getId(), "");
+
       CodecUtil.writeIndexHeader(entries, ENTRY_CODEC, VERSION_CURRENT, si.getId(), "");
 
       writeCompoundFile(entries, data, dir, si);
 
       CodecUtil.writeFooter(data);
+
       CodecUtil.writeFooter(entries);
     }
   }
@@ -117,6 +120,7 @@ public final class Lucene90CompoundFormat extends CompoundFormat {
 
         // copy all bytes except the footer
         long numBytesToCopy = in.length() - CodecUtil.footerLength() - in.getFilePointer();
+
         data.copyBytes(in, numBytesToCopy);
 
         // verify footer (checksum) matches for the incoming file we are copying
@@ -135,7 +139,9 @@ public final class Lucene90CompoundFormat extends CompoundFormat {
 
       // write entry for file
       entries.writeString(IndexFileNames.stripSegmentName(file));
+
       entries.writeLong(startOffset);
+
       entries.writeLong(length);
     }
   }

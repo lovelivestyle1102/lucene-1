@@ -54,9 +54,12 @@ final class ApproximatePriorityQueue<T> {
     // The above bitwise operation is equivalent to looping over slots until finding one that is
     // free.
     final long freeSlots = ~usedSlots;
+
     final int destinationSlot =
         expectedSlot + Long.numberOfTrailingZeros(freeSlots >>> expectedSlot);
+
     assert destinationSlot >= expectedSlot;
+
     if (destinationSlot < Long.SIZE) {
       usedSlots |= 1L << destinationSlot;
       T previous = slots.set(destinationSlot, entry);

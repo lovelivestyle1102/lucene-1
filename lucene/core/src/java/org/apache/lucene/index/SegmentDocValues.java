@@ -38,6 +38,7 @@ final class SegmentDocValues {
   private RefCount<DocValuesProducer> newDocValuesProducer(
       SegmentCommitInfo si, Directory dir, final Long gen, FieldInfos infos) throws IOException {
     Directory dvDir = dir;
+
     String segmentSuffix = "";
     if (gen.longValue() != -1) {
       dvDir = si.info.dir; // gen'd files are written outside CFS, so use SegInfo directory
@@ -47,7 +48,9 @@ final class SegmentDocValues {
     // set SegmentReadState to list only the fields that are relevant to that gen
     SegmentReadState srs =
         new SegmentReadState(dvDir, si.info, infos, IOContext.READ, segmentSuffix);
+
     DocValuesFormat dvFormat = si.info.getCodec().docValuesFormat();
+
     return new RefCount<DocValuesProducer>(dvFormat.fieldsProducer(srs)) {
       @SuppressWarnings("synthetic-access")
       @Override

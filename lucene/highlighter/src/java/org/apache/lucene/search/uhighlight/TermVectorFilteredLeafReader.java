@@ -36,6 +36,7 @@ final class TermVectorFilteredLeafReader extends FilterLeafReader {
   // NOTE: super ("in") is baseLeafReader
 
   private final Terms filterTerms;
+
   private final String fieldFilter;
 
   /**
@@ -58,7 +59,9 @@ final class TermVectorFilteredLeafReader extends FilterLeafReader {
     if (!field.equals(fieldFilter)) {
       return super.terms(field); // proceed like normal for fields we're not interested in
     }
+
     Terms terms = in.terms(field);
+
     return terms == null ? null : new TermsFilteredTerms(terms, filterTerms);
   }
 
@@ -69,6 +72,7 @@ final class TermVectorFilteredLeafReader extends FilterLeafReader {
 
     TermsFilteredTerms(Terms baseTerms, Terms filterTerms) {
       super(baseTerms);
+
       this.filterTerms = filterTerms;
     }
 

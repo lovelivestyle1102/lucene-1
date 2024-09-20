@@ -214,6 +214,7 @@ public class TestGraphTokenizers extends BaseTokenStreamTestCase {
     private int pendingPosInc;
 
     private final CharTermAttribute termAtt = addAttribute(CharTermAttribute.class);
+
     private final PositionIncrementAttribute posIncAtt =
         addAttribute(PositionIncrementAttribute.class);
 

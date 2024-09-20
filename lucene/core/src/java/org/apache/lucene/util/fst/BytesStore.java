@@ -39,7 +39,9 @@ class BytesStore extends DataOutput implements Accountable {
   private final int blockBits;
   private final int blockMask;
 
+  //结果
   private byte[] current;
+
   private int nextWrite;
 
   public BytesStore(int blockBits) {

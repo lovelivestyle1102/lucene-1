@@ -27,5 +27,5 @@ dependencies {
   implementation project(':lucene:queryparser')
   implementation project(':lucene:expressions')
 
-  testImplementation project(':lucene:test-framework')
+  implementation project(':lucene:test-framework')
 }

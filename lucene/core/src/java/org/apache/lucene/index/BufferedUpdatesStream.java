@@ -51,9 +51,13 @@ final class BufferedUpdatesStream implements Accountable {
   // deletes applied (whose bufferedDelGen defaults to 0)
   // will be correct:
   private long nextGen = 1;
+
   private final FinishedSegments finishedSegments;
+
   private final InfoStream infoStream;
+
   private final AtomicLong bytesUsed = new AtomicLong();
+
   private final AtomicInteger numTerms = new AtomicInteger();
 
   BufferedUpdatesStream(InfoStream infoStream) {
@@ -140,6 +144,7 @@ final class BufferedUpdatesStream implements Accountable {
    */
   void waitApplyAll(IndexWriter writer) throws IOException {
     assert Thread.holdsLock(writer) == false;
+
     Set<FrozenBufferedUpdates> waitFor;
     synchronized (this) {
       waitFor = new HashSet<>(updates);
@@ -173,7 +178,9 @@ final class BufferedUpdatesStream implements Accountable {
     packet.applied.countDown();
 
     updates.remove(packet);
+
     numTerms.addAndGet(-packet.numTermDeletes);
+
     assert numTerms.get() >= 0 : "numTerms=" + numTerms + " packet=" + packet;
 
     bytesUsed.addAndGet(-packet.bytesUsed);
@@ -193,6 +200,7 @@ final class BufferedUpdatesStream implements Accountable {
   void waitApplyForMerge(List<SegmentCommitInfo> mergeInfos, IndexWriter writer)
       throws IOException {
     long maxDelGen = Long.MIN_VALUE;
+
     for (SegmentCommitInfo info : mergeInfos) {
       maxDelGen = Math.max(maxDelGen, info.getBufferedDeletesGen());
     }
@@ -240,7 +248,9 @@ final class BufferedUpdatesStream implements Accountable {
     }
 
     ArrayList<FrozenBufferedUpdates> pendingPackets = new ArrayList<>();
+
     long totalDelCount = 0;
+
     for (FrozenBufferedUpdates packet : waitFor) {
       // Frozen packets are now resolved, concurrently, by the indexing threads that
       // create them, by adding a DocumentsWriter.ResolveUpdatesEvent to the events queue,
@@ -249,8 +259,10 @@ final class BufferedUpdatesStream implements Accountable {
         // if somebody else is currently applying it - move on to the next one and force apply below
         pendingPackets.add(packet);
       }
+
       totalDelCount += packet.totalDelCount;
     }
+
     for (FrozenBufferedUpdates packet : pendingPackets) {
       // now block on all the packets that were concurrently applied to ensure they are due before
       // we continue.
@@ -277,13 +289,19 @@ final class BufferedUpdatesStream implements Accountable {
   /** Holds all per-segment internal state used while resolving deletions. */
   static final class SegmentState implements Closeable {
     final long delGen;
+
     final ReadersAndUpdates rld;
+
     final SegmentReader reader;
+
     final int startDelCount;
+
     private final IOUtils.IOConsumer<ReadersAndUpdates> onClose;
 
     TermsEnum termsEnum;
+
     PostingsEnum postingsEnum;
+
     BytesRef term;
 
     SegmentState(

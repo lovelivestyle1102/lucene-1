@@ -459,7 +459,9 @@ public final class StandardTokenizerImpl {
 
   /* error codes */
   private static final int ZZ_UNKNOWN_ERROR = 0;
+
   private static final int ZZ_NO_MATCH = 1;
+
   private static final int ZZ_PUSHBACK_2BIG = 2;
 
   /* error messages for the codes above */
@@ -498,6 +500,7 @@ public final class StandardTokenizerImpl {
     return j;
   }
 
+  //输入源
   /** the input device */
   private java.io.Reader zzReader;
 
@@ -672,6 +675,7 @@ public final class StandardTokenizerImpl {
     if (requested == 0) {
       return true;
     }
+
     int numRead = zzReader.read(zzBuffer, zzEndRead, requested);
 
     /* not supposed to occur according to specification of java.io.Reader */
@@ -849,23 +853,30 @@ public final class StandardTokenizerImpl {
    */
   public int getNextToken() throws java.io.IOException {
     int zzInput;
+
     int zzAction;
 
     // cached fields:
     int zzCurrentPosL;
+
     int zzMarkedPosL;
+
     int zzEndReadL = zzEndRead;
+
     char [] zzBufferL = zzBuffer;
+
     char [] zzCMapL = ZZ_CMAP;
 
     int [] zzTransL = ZZ_TRANS;
+
     int [] zzRowMapL = ZZ_ROWMAP;
+
     int [] zzAttrL = ZZ_ATTRIBUTE;
 
     while (true) {
       zzMarkedPosL = zzMarkedPos;
 
-      yychar+= zzMarkedPosL-zzStartRead;
+      yychar += zzMarkedPosL-zzStartRead;
 
       zzAction = -1;
 
@@ -875,6 +886,7 @@ public final class StandardTokenizerImpl {
 
       // set up zzAction for empty match case:
       int zzAttributes = zzAttrL[zzState];
+
       if ( (zzAttributes & 1) == 1 ) {
         zzAction = zzState;
       }
@@ -885,39 +897,56 @@ public final class StandardTokenizerImpl {
     
           if (zzCurrentPosL < zzEndReadL) {
             zzInput = Character.codePointAt(zzBufferL, zzCurrentPosL, zzEndReadL);
+
             zzCurrentPosL += Character.charCount(zzInput);
           }
           else if (zzAtEOF) {
             zzInput = YYEOF;
+
             break zzForAction;
           }
           else {
             // store back cached positions
             zzCurrentPos  = zzCurrentPosL;
+
             zzMarkedPos   = zzMarkedPosL;
+
             boolean eof = zzRefill();
+
             // get translated positions and possibly new buffer
             zzCurrentPosL  = zzCurrentPos;
+
             zzMarkedPosL   = zzMarkedPos;
+
             zzBufferL      = zzBuffer;
+
             zzEndReadL     = zzEndRead;
+
             if (eof) {
               zzInput = YYEOF;
+
               break zzForAction;
             }
             else {
               zzInput = Character.codePointAt(zzBufferL, zzCurrentPosL, zzEndReadL);
+
               zzCurrentPosL += Character.charCount(zzInput);
             }
           }
+
           int zzNext = zzTransL[ zzRowMapL[zzState] + zzCMapL[zzInput] ];
+
           if (zzNext == -1) break zzForAction;
+
           zzState = zzNext;
 
           zzAttributes = zzAttrL[zzState];
+
           if ( (zzAttributes & 1) == 1 ) {
             zzAction = zzState;
+
             zzMarkedPosL = zzCurrentPosL;
+
             if ( (zzAttributes & 8) == 8 ) break zzForAction;
           }
 

@@ -427,8 +427,11 @@ public class STUniformSplitTermsWriter extends UniformSplitTermsWriter {
   final class SegmentPostings {
 
     final int segmentIndex;
+
     final BlockTermState termState;
+
     final STMergingBlockReader mergingBlockReader;
+
     final MergeState.DocMap docMap;
 
     SegmentPostings(
@@ -437,8 +440,11 @@ public class STUniformSplitTermsWriter extends UniformSplitTermsWriter {
         STMergingBlockReader mergingBlockReader,
         MergeState.DocMap docMap) {
       this.segmentIndex = segmentIndex;
+
       this.termState = termState;
+
       this.mergingBlockReader = mergingBlockReader;
+
       this.docMap = docMap;
     }
 

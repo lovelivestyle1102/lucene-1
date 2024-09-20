@@ -135,12 +135,19 @@ public class STMergingTermsEnum extends TermsEnum {
   protected class MultiSegmentsPostingsEnum extends PostingsEnum {
 
     protected final PostingsEnum[] reusablePostingsEnums;
+
     protected List<STUniformSplitTermsWriter.SegmentPostings> segmentPostingsList;
+
     protected int segmentIndex;
+
     protected PostingsEnum postingsEnum;
+
     protected boolean postingsEnumExhausted;
+
     protected MergeState.DocMap docMap;
+
     protected int docId;
+
     protected int postingsFlags;
 
     protected MultiSegmentsPostingsEnum(int numSegments) {

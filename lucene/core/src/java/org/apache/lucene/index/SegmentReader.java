@@ -45,12 +45,16 @@ import org.apache.lucene.util.IOUtils;
 public final class SegmentReader extends CodecReader {
 
   private final SegmentCommitInfo si;
+
   // this is the original SI that IW uses internally but it's mutated behind the scenes
   // and we don't want this SI to be used for anything. Yet, IW needs this to do maintainance
   // and lookup pooled readers etc.
   private final SegmentCommitInfo originalSi;
+
   private final LeafMetaData metaData;
+
   private final Bits liveDocs;
+
   private final Bits hardLiveDocs;
 
   // Normally set to si.maxDoc - si.delDocCount, unless we
@@ -59,6 +63,7 @@ public final class SegmentReader extends CodecReader {
   private final int numDocs;
 
   final SegmentCoreReaders core;
+
   final SegmentDocValues segDocValues;
 
   /**
@@ -68,6 +73,7 @@ public final class SegmentReader extends CodecReader {
   final boolean isNRT;
 
   final DocValuesProducer docValuesProducer;
+
   final FieldInfos fieldInfos;
 
   /**
@@ -79,31 +85,45 @@ public final class SegmentReader extends CodecReader {
   SegmentReader(SegmentCommitInfo si, int createdVersionMajor, IOContext context)
       throws IOException {
     this.si = si.clone();
+
     this.originalSi = si;
+
+    //获取元数据LeafMetaData
     this.metaData =
         new LeafMetaData(createdVersionMajor, si.info.getMinVersion(), si.info.getIndexSort());
 
     // We pull liveDocs/DV updates from disk:
     this.isNRT = false;
 
+    //获取不会发生变更的SegmentCoreReaders
     core = new SegmentCoreReaders(si.info.dir, si, context);
+
     segDocValues = new SegmentDocValues();
 
     boolean success = false;
+
     final Codec codec = si.info.getCodec();
+
     try {
       if (si.hasDeletions()) {
         // NOTE: the bitvector is stored using the regular directory, not cfs
+        //获取段中有效的文档号集合
         hardLiveDocs =
             liveDocs = codec.liveDocsFormat().readLiveDocs(directory(), si, IOContext.READONCE);
       } else {
         assert si.getDelCount() == 0;
         hardLiveDocs = liveDocs = null;
       }
+
+      //获取段中有效的文档号的数量numDocs
       numDocs = si.info.maxDoc() - si.getDelCount();
 
+      //获取段中最新的域信息，索引文件.fnm
       fieldInfos = initFieldInfos();
+
+      //获取段中DocValues的信息DocValuesProducer，索引文件.dim .dii
       docValuesProducer = initDocValuesProducer();
+
       assert assertLiveDocs(isNRT, hardLiveDocs, liveDocs);
       success = true;
     } finally {
@@ -133,26 +153,40 @@ public final class SegmentReader extends CodecReader {
     if (numDocs > si.info.maxDoc()) {
       throw new IllegalArgumentException("numDocs=" + numDocs + " but maxDoc=" + si.info.maxDoc());
     }
+
     if (liveDocs != null && liveDocs.length() != si.info.maxDoc()) {
       throw new IllegalArgumentException(
           "maxDoc=" + si.info.maxDoc() + " but liveDocs.size()=" + liveDocs.length());
     }
+
     this.si = si.clone();
+
     this.originalSi = si;
+
     this.metaData = sr.getMetaData();
+
     this.liveDocs = liveDocs;
+
     this.hardLiveDocs = hardLiveDocs;
+
     assert assertLiveDocs(isNRT, hardLiveDocs, liveDocs);
+
     this.isNRT = isNRT;
+
     this.numDocs = numDocs;
+
     this.core = sr.core;
+
     core.incRef();
+
     this.segDocValues = sr.segDocValues;
 
     boolean success = false;
     try {
       fieldInfos = initFieldInfos();
+
       docValuesProducer = initDocValuesProducer();
+
       success = true;
     } finally {
       if (!success) {
@@ -199,7 +233,9 @@ public final class SegmentReader extends CodecReader {
     } else {
       // updates always outside of CFS
       FieldInfosFormat fisFormat = si.info.getCodec().fieldInfosFormat();
+
       final String segmentSuffix = Long.toString(si.getFieldInfosGen(), Character.MAX_RADIX);
+
       return fisFormat.read(si.info.dir, si.info, segmentSuffix, IOContext.READONCE);
     }
   }

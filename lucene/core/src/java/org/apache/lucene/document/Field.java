@@ -204,14 +204,19 @@ public class Field implements IndexableField {
     if (name == null) {
       throw new IllegalArgumentException("name must not be null");
     }
+
     if (bytes == null) {
       throw new IllegalArgumentException("bytes must not be null");
     }
+
     if (type == null) {
       throw new IllegalArgumentException("type must not be null");
     }
+
     this.name = name;
+
     this.fieldsData = bytes;
+
     this.type = type;
   }
 
@@ -231,18 +236,24 @@ public class Field implements IndexableField {
     if (name == null) {
       throw new IllegalArgumentException("name must not be null");
     }
+
     if (value == null) {
       throw new IllegalArgumentException("value must not be null");
     }
+
     if (type == null) {
       throw new IllegalArgumentException("type must not be null");
     }
+
     if (!type.stored() && type.indexOptions() == IndexOptions.NONE) {
       throw new IllegalArgumentException(
           "it doesn't make sense to have a field that " + "is neither indexed nor stored");
     }
+
     this.name = name;
+
     this.fieldsData = value;
+
     this.type = type;
   }
 
@@ -456,7 +467,9 @@ public class Field implements IndexableField {
       return null;
     }
 
+    //不需要分词
     if (!fieldType().tokenized()) {
+      //为字符串
       if (stringValue() != null) {
         if (!(reuse instanceof StringTokenStream)) {
           // lazy init the TokenStream as it is heavy to instantiate
@@ -465,6 +478,7 @@ public class Field implements IndexableField {
         }
         ((StringTokenStream) reuse).setValue(stringValue());
         return reuse;
+      //如果为二进制
       } else if (binaryValue() != null) {
         if (!(reuse instanceof BinaryTokenStream)) {
           // lazy init the TokenStream as it is heavy to instantiate
@@ -482,7 +496,9 @@ public class Field implements IndexableField {
       return tokenStream;
     } else if (readerValue() != null) {
       return analyzer.tokenStream(name(), readerValue());
+    //字符串类型的话，需要分词器来处理
     } else if (stringValue() != null) {
+      //为字符串，切需要分词器分词
       return analyzer.tokenStream(name(), stringValue());
     }
 

@@ -47,11 +47,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class BaseCompositeReader<R extends IndexReader> extends CompositeReader {
   private final R[] subReaders;
+
   /** A comparator for sorting sub-readers */
   protected final Comparator<R> subReadersSorter;
 
   private final int[] starts; // 1st docno for each reader
+
   private final int maxDoc;
+
+
   private AtomicInteger numDocs = new AtomicInteger(-1); // computed lazily
 
   /**
@@ -74,15 +78,24 @@ public abstract class BaseCompositeReader<R extends IndexReader> extends Composi
     if (subReadersSorter != null) {
       Arrays.sort(subReaders, subReadersSorter);
     }
+
     this.subReaders = subReaders;
+
     this.subReadersSorter = subReadersSorter;
+
     this.subReadersList = Collections.unmodifiableList(Arrays.asList(subReaders));
+
     starts = new int[subReaders.length + 1]; // build starts array
+
     long maxDoc = 0;
+
     for (int i = 0; i < subReaders.length; i++) {
       starts[i] = (int) maxDoc;
+
       final IndexReader r = subReaders[i];
+
       maxDoc += r.maxDoc(); // compute maxDocs
+
       r.registerParentReader(this);
     }
 
@@ -108,6 +121,7 @@ public abstract class BaseCompositeReader<R extends IndexReader> extends Composi
     }
 
     this.maxDoc = Math.toIntExact(maxDoc);
+
     starts[subReaders.length] = this.maxDoc;
   }
 

@@ -28,6 +28,7 @@ import java.util.Objects;
 public final class FieldInfo {
   /** Field's name */
   public final String name;
+
   /** Internal field number */
   public final int number;
 
@@ -39,6 +40,7 @@ public final class FieldInfo {
   private boolean omitNorms; // omit norms associated with indexed fields
 
   private final IndexOptions indexOptions;
+
   private boolean storePayloads; // whether this field stores payloads together with term positions
 
   private final Map<String, String> attributes;
@@ -52,10 +54,12 @@ public final class FieldInfo {
   private int pointDimensionCount;
 
   private int pointIndexDimensionCount;
+
   private int pointNumBytes;
 
   // if it is a positive value, it means this field indexes vectors
   private final int vectorDimension;
+
   private final VectorSimilarityFunction vectorSimilarityFunction;
 
   // whether this field is used as the soft-deletes field

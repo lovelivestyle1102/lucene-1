@@ -284,8 +284,11 @@ public abstract class ShardSearchingTestBase extends LuceneTestCase {
       public TermStatistics termStatistics(Term term, int docFreq, long totalTermFreq)
           throws IOException {
         assert term != null;
+
         long distributedDocFreq = 0;
+
         long distributedTotalTermFreq = 0;
+
         for (int nodeID = 0; nodeID < nodeVersions.length; nodeID++) {
 
           final TermStatistics subStats;
@@ -294,19 +297,25 @@ public abstract class ShardSearchingTestBase extends LuceneTestCase {
           } else {
             final TermAndShardVersion key =
                 new TermAndShardVersion(nodeID, nodeVersions[nodeID], term);
+
             subStats = termStatsCache.get(key);
+
             if (subStats == null) {
               continue; // term not found
             }
           }
 
           long nodeDocFreq = subStats.docFreq();
+
           distributedDocFreq += nodeDocFreq;
 
           long nodeTotalTermFreq = subStats.totalTermFreq();
+
           distributedTotalTermFreq += nodeTotalTermFreq;
         }
+
         assert distributedDocFreq > 0;
+
         return new TermStatistics(term.bytes(), distributedDocFreq, distributedTotalTermFreq);
       }
 

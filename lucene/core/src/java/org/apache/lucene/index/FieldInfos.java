@@ -48,20 +48,30 @@ public class FieldInfos implements Iterable<FieldInfo> {
   public static final FieldInfos EMPTY = new FieldInfos(new FieldInfo[0]);
 
   private final boolean hasFreq;
+
   private final boolean hasProx;
+
   private final boolean hasPayloads;
+
   private final boolean hasOffsets;
+
   private final boolean hasVectors;
+
   private final boolean hasNorms;
+
   private final boolean hasDocValues;
+
   private final boolean hasPointValues;
+
   private final boolean hasVectorValues;
+
   private final String softDeletesField;
 
   // used only by fieldInfo(int)
   private final FieldInfo[] byNumber;
 
   private final HashMap<String, FieldInfo> byName = new HashMap<>();
+
   private final Collection<FieldInfo> values; // for an unmodifiable iterator
 
   /** Constructs a new FieldInfos from an array of FieldInfo objects */

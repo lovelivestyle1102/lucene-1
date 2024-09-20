@@ -92,14 +92,19 @@ public abstract class Tokenizer extends TokenStream {
     } else if (this.input != ILLEGAL_STATE_READER) {
       throw new IllegalStateException("TokenStream contract violation: close() call missing");
     }
+
     this.inputPending = input;
+
     setReaderTestPoint();
   }
 
   @Override
   public void reset() throws IOException {
     super.reset();
+
+    //将字符串重新赋值给input
     input = inputPending;
+
     inputPending = ILLEGAL_STATE_READER;
   }
 

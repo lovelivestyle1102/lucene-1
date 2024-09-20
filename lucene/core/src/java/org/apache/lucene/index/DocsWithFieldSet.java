@@ -32,7 +32,9 @@ final class DocsWithFieldSet extends DocIdSet {
       RamUsageEstimator.shallowSizeOfInstance(DocsWithFieldSet.class);
 
   private FixedBitSet set;
+
   private int cardinality = 0;
+
   private int lastDocId = -1;
 
   void add(int docID) {
@@ -40,6 +42,7 @@ final class DocsWithFieldSet extends DocIdSet {
       throw new IllegalArgumentException(
           "Out of order doc ids: last=" + lastDocId + ", next=" + docID);
     }
+
     if (set != null) {
       set = FixedBitSet.ensureCapacity(set, docID);
       set.set(docID);
@@ -49,7 +52,9 @@ final class DocsWithFieldSet extends DocIdSet {
       set.set(0, cardinality);
       set.set(docID);
     }
+
     lastDocId = docID;
+
     cardinality++;
   }
 

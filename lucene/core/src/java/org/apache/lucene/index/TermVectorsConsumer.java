@@ -36,8 +36,11 @@ import org.apache.lucene.util.RamUsageEstimator;
 
 class TermVectorsConsumer extends TermsHash {
   protected final Directory directory;
+
   protected final SegmentInfo info;
+
   protected final Codec codec;
+
   TermVectorsWriter writer;
 
   /** Scratch term used by TermVectorsConsumerPerField.finishDocument. */
@@ -49,9 +52,13 @@ class TermVectorsConsumer extends TermsHash {
   final ByteSliceReader vectorSliceReaderOff = new ByteSliceReader();
 
   private boolean hasVectors;
+
   private int numVectorFields;
+
   int lastDocID;
+
   private TermVectorsConsumerPerField[] perFields = new TermVectorsConsumerPerField[1];
+
   // this accountable either holds the writer or one that returns null.
   // it's cleaner than checking if the writer is null all over the place
   Accountable accountable = Accountable.NULL_ACCOUNTABLE;
@@ -129,9 +136,11 @@ class TermVectorsConsumer extends TermsHash {
 
     // Append term vectors to the real outputs:
     writer.startDocument(numVectorFields);
+
     for (int i = 0; i < numVectorFields; i++) {
       perFields[i].finishDocument();
     }
+
     writer.finishDocument();
 
     assert lastDocID == docID : "lastDocID=" + lastDocID + " docID=" + docID;
@@ -139,6 +148,7 @@ class TermVectorsConsumer extends TermsHash {
     lastDocID++;
 
     super.reset();
+
     resetFields();
   }
 
@@ -154,6 +164,7 @@ class TermVectorsConsumer extends TermsHash {
 
   void resetFields() {
     Arrays.fill(perFields, null); // don't hang onto stuff from previous doc
+
     numVectorFields = 0;
   }
 
@@ -165,8 +176,11 @@ class TermVectorsConsumer extends TermsHash {
   void addFieldToFlush(TermVectorsConsumerPerField fieldToFlush) {
     if (numVectorFields == perFields.length) {
       int newSize = ArrayUtil.oversize(numVectorFields + 1, RamUsageEstimator.NUM_BYTES_OBJECT_REF);
+
       TermVectorsConsumerPerField[] newArray = new TermVectorsConsumerPerField[newSize];
+
       System.arraycopy(perFields, 0, newArray, 0, numVectorFields);
+
       perFields = newArray;
     }
 

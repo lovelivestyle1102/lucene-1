@@ -53,11 +53,16 @@ public class ScorerIndexSearcher extends IndexSearcher {
       // that the scorer passed to LeafCollector.setScorer supports
       // Scorer.getChildren
       Scorer scorer = weight.scorer(ctx);
+
       if (scorer != null) {
         final DocIdSetIterator iterator = scorer.iterator();
+
         final LeafCollector leafCollector = collector.getLeafCollector(ctx);
+
         leafCollector.setScorer(scorer);
+
         final Bits liveDocs = ctx.reader().getLiveDocs();
+
         for (int doc = iterator.nextDoc();
             doc != DocIdSetIterator.NO_MORE_DOCS;
             doc = iterator.nextDoc()) {

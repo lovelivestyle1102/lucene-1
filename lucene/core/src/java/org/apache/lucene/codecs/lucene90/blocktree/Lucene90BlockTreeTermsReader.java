@@ -95,6 +95,7 @@ public final class Lucene90BlockTreeTermsReader extends FieldsProducer {
 
   // Open input to the main terms dict file (_X.tib)
   final IndexInput termsIn;
+
   // Open input to the terms index file (_X.tip)
   final IndexInput indexIn;
 
@@ -105,6 +106,7 @@ public final class Lucene90BlockTreeTermsReader extends FieldsProducer {
   final PostingsReaderBase postingsReader;
 
   private final Map<String, FieldReader> fieldMap;
+
   private final List<String> fieldList;
 
   final String segment;
@@ -122,7 +124,9 @@ public final class Lucene90BlockTreeTermsReader extends FieldsProducer {
     try {
       String termsName =
           IndexFileNames.segmentFileName(segment, state.segmentSuffix, TERMS_EXTENSION);
+
       termsIn = state.directory.openInput(termsName, state.context);
+
       version =
           CodecUtil.checkIndexHeader(
               termsIn,
@@ -134,7 +138,10 @@ public final class Lucene90BlockTreeTermsReader extends FieldsProducer {
 
       String indexName =
           IndexFileNames.segmentFileName(segment, state.segmentSuffix, TERMS_INDEX_EXTENSION);
+
+      //读取FST文件
       indexIn = state.directory.openInput(indexName, state.context);
+
       CodecUtil.checkIndexHeader(
           indexIn,
           TERMS_INDEX_CODEC_NAME,
@@ -152,6 +159,7 @@ public final class Lucene90BlockTreeTermsReader extends FieldsProducer {
       try (ChecksumIndexInput metaIn = state.directory.openChecksumInput(metaName, state.context)) {
         try {
           final IndexInput indexMetaIn, termsMetaIn;
+
           CodecUtil.checkIndexHeader(
               metaIn,
               TERMS_META_CODEC_NAME,
@@ -159,13 +167,16 @@ public final class Lucene90BlockTreeTermsReader extends FieldsProducer {
               version,
               state.segmentInfo.getId(),
               state.segmentSuffix);
+
           indexMetaIn = termsMetaIn = metaIn;
+
           postingsReader.init(metaIn, state);
 
           final int numFields = termsMetaIn.readVInt();
           if (numFields < 0) {
             throw new CorruptIndexException("invalid numFields: " + numFields, termsMetaIn);
           }
+
           fieldMap = new HashMap<>((int) (numFields / 0.75f) + 1);
           for (int i = 0; i < numFields; ++i) {
             final int field = termsMetaIn.readVInt();
@@ -205,6 +216,8 @@ public final class Lucene90BlockTreeTermsReader extends FieldsProducer {
                   termsMetaIn);
             }
             final long indexStartFP = indexMetaIn.readVLong();
+
+            //构建每个字段对应的FST
             FieldReader previous =
                 fieldMap.put(
                     fieldInfo.name,
@@ -292,6 +305,8 @@ public final class Lucene90BlockTreeTermsReader extends FieldsProducer {
   @Override
   public Terms terms(String field) throws IOException {
     assert field != null;
+
+    //FieldReader
     return fieldMap.get(field);
   }
 

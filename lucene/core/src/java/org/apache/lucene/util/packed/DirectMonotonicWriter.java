@@ -31,15 +31,23 @@ import org.apache.lucene.util.ArrayUtil;
 public final class DirectMonotonicWriter {
 
   public static final int MIN_BLOCK_SHIFT = 2;
+
   public static final int MAX_BLOCK_SHIFT = 22;
 
   final IndexOutput meta;
+
   final IndexOutput data;
+
   final long numValues;
+
   final long baseDataPointer;
+
   final long[] buffer;
+
   int bufferSize;
+
   long count;
+
   boolean finished;
 
   DirectMonotonicWriter(IndexOutput metaOut, IndexOutput dataOut, long numValues, int blockShift) {
@@ -52,10 +60,13 @@ public final class DirectMonotonicWriter {
               + "], got "
               + blockShift);
     }
+
     if (numValues < 0) {
       throw new IllegalArgumentException("numValues can't be negative, got " + numValues);
     }
+
     final long numBlocks = numValues == 0 ? 0 : ((numValues - 1) >>> blockShift) + 1;
+
     if (numBlocks > ArrayUtil.MAX_ARRAY_LENGTH) {
       throw new IllegalArgumentException(
           "blockShift is too low for the provided number of values: blockShift="
@@ -65,12 +76,19 @@ public final class DirectMonotonicWriter {
               + ", MAX_ARRAY_LENGTH="
               + ArrayUtil.MAX_ARRAY_LENGTH);
     }
+
     this.meta = metaOut;
+
     this.data = dataOut;
+
     this.numValues = numValues;
+
     final int blockSize = 1 << blockShift;
+
     this.buffer = new long[(int) Math.min(numValues, blockSize)];
+
     this.bufferSize = 0;
+
     this.baseDataPointer = dataOut.getFilePointer();
   }
 
@@ -79,6 +97,7 @@ public final class DirectMonotonicWriter {
 
     final float avgInc =
         (float) ((double) (buffer[bufferSize - 1] - buffer[0]) / Math.max(1, bufferSize - 1));
+
     for (int i = 0; i < bufferSize; ++i) {
       final long expected = (long) (avgInc * (long) i);
       buffer[i] -= expected;
@@ -99,19 +118,27 @@ public final class DirectMonotonicWriter {
     }
 
     meta.writeLong(min);
+
     meta.writeInt(Float.floatToIntBits(avgInc));
+
     meta.writeLong(data.getFilePointer() - baseDataPointer);
+
     if (maxDelta == 0) {
       meta.writeByte((byte) 0);
     } else {
       final int bitsRequired = DirectWriter.unsignedBitsRequired(maxDelta);
+
       DirectWriter writer = DirectWriter.getInstance(data, bufferSize, bitsRequired);
+
       for (int i = 0; i < bufferSize; ++i) {
         writer.add(buffer[i]);
       }
+
       writer.finish();
+
       meta.writeByte((byte) bitsRequired);
     }
+
     bufferSize = 0;
   }
 
@@ -127,11 +154,15 @@ public final class DirectMonotonicWriter {
     if (v < previous) {
       throw new IllegalArgumentException("Values do not come in order: " + previous + ", " + v);
     }
+
     if (bufferSize == buffer.length) {
       flush();
     }
+
     buffer[bufferSize++] = v;
+
     previous = v;
+
     count++;
   }
 
@@ -141,12 +172,15 @@ public final class DirectMonotonicWriter {
       throw new IllegalStateException(
           "Wrong number of values added, expected: " + numValues + ", got: " + count);
     }
+
     if (finished) {
       throw new IllegalStateException("#finish has been called already");
     }
+
     if (bufferSize > 0) {
       flush();
     }
+
     finished = true;
   }
 

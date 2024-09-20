@@ -112,10 +112,11 @@ public final class Lucene90LiveDocsFormat extends LiveDocsFormat {
       Bits bits, Directory dir, SegmentCommitInfo info, int newDelCount, IOContext context)
       throws IOException {
     long gen = info.getNextDelGen();
+
     String name = IndexFileNames.fileNameFromGeneration(info.info.name, EXTENSION, gen);
+
     int delCount;
     try (IndexOutput output = dir.createOutput(name, context)) {
-
       CodecUtil.writeIndexHeader(
           output,
           CODEC_NAME,
@@ -127,6 +128,7 @@ public final class Lucene90LiveDocsFormat extends LiveDocsFormat {
 
       CodecUtil.writeFooter(output);
     }
+
     if (delCount != info.getDelCount() + newDelCount) {
       throw new CorruptIndexException(
           "bits.deleted="

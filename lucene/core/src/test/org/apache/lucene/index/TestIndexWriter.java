@@ -140,6 +140,7 @@ public class TestIndexWriter extends LuceneTestCase {
         writer.commit();
       }
     }
+
     IndexWriter.DocStats docStats = writer.getDocStats();
     assertEquals(100, docStats.maxDoc);
     assertEquals(100, docStats.numDocs);
@@ -1165,6 +1166,7 @@ public class TestIndexWriter extends LuceneTestCase {
     Document doc = new Document();
 
     FieldType customType = new FieldType(StoredField.TYPE);
+
     customType.setTokenized(true);
 
     Field f = new Field("binary", b, 10, 17, customType);
@@ -1256,8 +1258,11 @@ public class TestIndexWriter extends LuceneTestCase {
 
   public void testNoDocsIndex() throws Throwable {
     Directory dir = newDirectory();
+
     IndexWriter writer = new IndexWriter(dir, newIndexWriterConfig(new MockAnalyzer(random())));
+
     writer.addDocument(new Document());
+
     writer.close();
 
     dir.close();

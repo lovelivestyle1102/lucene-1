@@ -65,12 +65,17 @@ final class DocumentsWriterFlushQueue {
     // Each flush is assigned a ticket in the order they acquire the ticketQueue
     // lock
     incTickets();
+
     boolean success = false;
+
     try {
       // prepare flush freezes the global deletes - do in synced block!
       final FlushTicket ticket = new FlushTicket(dwpt.prepareFlush(), true);
+
       queue.add(ticket);
+
       success = true;
+
       return ticket;
     } finally {
       if (!success) {
@@ -101,9 +106,12 @@ final class DocumentsWriterFlushQueue {
     assert purgeLock.isHeldByCurrentThread();
     while (true) {
       final FlushTicket head;
+
       final boolean canPublish;
+
       synchronized (this) {
         head = queue.peek();
+
         canPublish = head != null && head.canPublish(); // do this synced
       }
       if (canPublish) {

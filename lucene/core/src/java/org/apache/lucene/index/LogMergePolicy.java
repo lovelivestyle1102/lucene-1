@@ -61,16 +61,29 @@ public abstract class LogMergePolicy extends MergePolicy {
    */
   public static final double DEFAULT_NO_CFS_RATIO = 0.1;
 
-  /** How many segments to merge at a time. */
+  /**
+   *
+   * 描述了IndexWriter执行一次合并操作的段的个数
+   *
+   * How many segments to merge at a time.
+   *
+   **/
   protected int mergeFactor = DEFAULT_MERGE_FACTOR;
 
   /**
+   * 该值用来分层，关键的作用是处理数量很多的小段。如果minMergeSize设置的比较大，那么会导致划分很多的层，很多层意味着性能的降低
+   *
    * Any segments whose size is smaller than this value will be rounded up to this value. This
    * ensures that tiny segments are aggressively merged.
    */
   protected long minMergeSize;
 
-  /** If the size of a segment exceeds this value then it will never be merged. */
+  /**
+   *  某个段超过该值，这个段永远不会被合并
+   *
+   *  If the size of a segment exceeds this value then it will never be merged.
+   *
+   **/
   protected long maxMergeSize;
 
   // Although the core MPs set it explicitly, we must default in case someone
@@ -81,10 +94,21 @@ public abstract class LogMergePolicy extends MergePolicy {
    */
   protected long maxMergeSizeForForcedMerge = Long.MAX_VALUE;
 
-  /** If a segment has more than this many documents then it will never be merged. */
+  /**
+   *
+   * 如果段中的文档数超过这个值，那么该段永远不会被合并
+   *
+   * If a segment has more than this many documents then it will never be merged.
+   *
+   **/
   protected int maxMergeDocs = DEFAULT_MAX_MERGE_DOCS;
 
-  /** If true, we pro-rate a segment's size by the percentage of non-deleted documents. */
+  /**
+   * 该值描述了是否要标记段中的被删除的文档，如果该值为true，那么被删除的文档的个数或大小不会作为该段的一部分。
+   *
+   * If true, we pro-rate a segment's size by the percentage of non-deleted documents.
+   *
+   **/
   protected boolean calibrateSizeByDeletes = true;
 
   /** Sole constructor. (For invocation by subclass constructors, typically implicit.) */

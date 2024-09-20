@@ -55,6 +55,7 @@ public abstract class PostingsWriterBase implements Closeable {
    * the bit in the provided {@link FixedBitSet} for every docID written. If no docs were written,
    * this method should return null, and the terms dict will skip the term.
    */
+  // 生成字段中某个term的倒排信息
   public abstract BlockTermState writeTerm(
       BytesRef term, TermsEnum termsEnum, FixedBitSet docsSeen, NormsProducer norms)
       throws IOException;
@@ -65,11 +66,13 @@ public abstract class PostingsWriterBase implements Closeable {
    * one always increases when a new term is consumed. {@code out} is used to write generic bytes,
    * which are not monotonic.
    */
+  // 在构建term词典索引文件的时候使用 （以后介绍tim，tip索引文件的时候详细介绍）
   public abstract void encodeTerm(
       DataOutput out, FieldInfo fieldInfo, BlockTermState state, boolean absolute)
       throws IOException;
 
   /** Sets the current field for writing. */
+  // 设置当前处理的字段信息
   public abstract void setField(FieldInfo fieldInfo);
 
   @Override

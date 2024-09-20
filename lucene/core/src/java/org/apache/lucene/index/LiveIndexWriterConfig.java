@@ -40,7 +40,10 @@ public class LiveIndexWriterConfig {
   private final Analyzer analyzer;
 
   private volatile int maxBufferedDocs;
+
   private volatile double ramBufferSizeMB;
+
+  //预热合并后的新段，它描述的是在执行的合并期间，提前获得合并后生成的新段的信息，由于段的合并和文档的增删改是并发操作，所以使用该配置可以提高性能
   private volatile IndexReaderWarmer mergedSegmentWarmer;
 
   // modified by IndexWriterConfig
@@ -68,7 +71,13 @@ public class LiveIndexWriterConfig {
   /** {@link InfoStream} for debugging messages. */
   protected volatile InfoStream infoStream;
 
-  /** {@link MergePolicy} for selecting merges. */
+  /**
+   *
+   * 段的合并策略，它用来描述如何从索引目录中找到满足合并要求的段集合
+   *
+   * {@link MergePolicy} for selecting merges.
+   *
+   **/
   protected volatile MergePolicy mergePolicy;
 
   /** True if readers should be pooled. */
@@ -83,10 +92,22 @@ public class LiveIndexWriterConfig {
    */
   protected volatile int perThreadHardLimitMB;
 
-  /** True if segment flushes should use compound file format */
+  /**
+   *
+   * 通过flush，commit的操作生成索引使用的数据结构都是复合索引文件
+   *
+   * True if segment flushes should use compound file format
+   *
+   **/
   protected volatile boolean useCompoundFile = IndexWriterConfig.DEFAULT_USE_COMPOUND_FILE_SYSTEM;
 
-  /** True if calls to {@link IndexWriter#close()} should first do a commit. */
+  /**
+   *
+   *
+   *
+   * True if calls to {@link IndexWriter#close()} should first do a commit.
+   *
+   **/
   protected boolean commitOnClose = IndexWriterConfig.DEFAULT_COMMIT_ON_CLOSE;
 
   /** The sort order to use to write merged segments. */
@@ -99,6 +120,9 @@ public class LiveIndexWriterConfig {
   protected Set<String> indexSortFields = Collections.emptySet();
 
   /**
+   *
+   *
+   *
    * if an indexing thread should check for pending flushes on update in order to help out on a full
    * flush
    */
@@ -115,26 +139,52 @@ public class LiveIndexWriterConfig {
 
   // used by IndexWriterConfig
   LiveIndexWriterConfig(Analyzer analyzer) {
+    //分词器
     this.analyzer = analyzer;
+
+    //描述了索引信息被写入到磁盘前暂时缓存在内存中允许的最大使用内存值
     ramBufferSizeMB = IndexWriterConfig.DEFAULT_RAM_BUFFER_SIZE_MB;
+
+    //描述了索引信息被写入到磁盘前暂时缓存在内存中允许的文档最大数量，指的是一个DWPT允许添加的最大文档数量
     maxBufferedDocs = IndexWriterConfig.DEFAULT_MAX_BUFFERED_DOCS;
+
     mergedSegmentWarmer = null;
+
     delPolicy = new KeepOnlyLastCommitDeletionPolicy();
+
     commit = null;
+
     useCompoundFile = IndexWriterConfig.DEFAULT_USE_COMPOUND_FILE_SYSTEM;
+
     openMode = OpenMode.CREATE_OR_APPEND;
+
+    //Lucene打分的组成部分
     similarity = IndexSearcher.getDefaultSimilarity();
+
+    //MergeScheduler即段的合并调度策略
     mergeScheduler = new ConcurrentMergeScheduler();
+
+    //Codec定义了索引文件的数据结构，通过SPI加载。所以文件写都是通过Format，所以Codec中定义了各种Format
     codec = Codec.getDefault();
+
     if (codec == null) {
       throw new NullPointerException();
     }
+
+    //InfoStream用来在对Lucene进行调试时实现debug输出信息
     infoStream = InfoStream.getDefault();
+
     mergePolicy = new TieredMergePolicy();
+
+    //FlushPolicy描述了IndexWriter执行了增删改的操作后，将修改后的索引信息写入磁盘的时机
     flushPolicy = new FlushByRamOrCountsPolicy();
+
     readerPooling = IndexWriterConfig.DEFAULT_READER_POOLING;
+
     perThreadHardLimitMB = IndexWriterConfig.DEFAULT_RAM_PER_THREAD_HARD_LIMIT_MB;
+
     maxFullFlushMergeWaitMillis = IndexWriterConfig.DEFAULT_MAX_FULL_FLUSH_MERGE_WAIT_MILLIS;
+
     eventListener = IndexWriterEventListener.NO_OP_LISTENER;
   }
 
@@ -290,6 +340,9 @@ public class LiveIndexWriterConfig {
   }
 
   /**
+   *
+   * 执行一次提交操作后，这次提交包含的所有的段的信心用IndexCommit来描述
+   *
    * Returns the {@link IndexCommit} as specified in {@link
    * IndexWriterConfig#setIndexCommit(IndexCommit)} or the default, {@code null} which specifies to
    * open the latest index commit point.
@@ -298,12 +351,20 @@ public class LiveIndexWriterConfig {
     return commit;
   }
 
-  /** Expert: returns the {@link Similarity} implementation used by this {@link IndexWriter}. */
+  /**
+   * lucene打分的组成成分
+   *
+   * Expert: returns the {@link Similarity} implementation used by this {@link IndexWriter}.
+   *
+   **/
   public Similarity getSimilarity() {
     return similarity;
   }
 
   /**
+   *
+   * 段的合并调度策略，用来定义如何执行一个或多个段的合并
+   *
    * Returns the {@link MergeScheduler} that was set by {@link
    * IndexWriterConfig#setMergeScheduler(MergeScheduler)}.
    */
@@ -311,7 +372,12 @@ public class LiveIndexWriterConfig {
     return mergeScheduler;
   }
 
-  /** Returns the current {@link Codec}. */
+  /**
+   * 定义来索引文件的数据结构，即描述了每一种索引文件需要记录哪些信息，以及如何存储这些信息
+   *
+   * Returns the current {@link Codec}.
+   *
+   **/
   public Codec getCodec() {
     return codec;
   }
@@ -387,7 +453,13 @@ public class LiveIndexWriterConfig {
     return commitOnClose;
   }
 
-  /** Get the index-time {@link Sort} order, applied to all (flushed and merged) segments. */
+  /**
+   *
+   * 索引阶段如何对Segment内的文档进行排序
+   *
+   * Get the index-time {@link Sort} order, applied to all (flushed and merged) segments.
+   *
+   **/
   public Sort getIndexSort() {
     return indexSort;
   }

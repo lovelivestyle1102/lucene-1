@@ -59,18 +59,24 @@ class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
 
   SortedSetDocValuesWriter(FieldInfo fieldInfo, Counter iwBytesUsed, ByteBlockPool pool) {
     this.fieldInfo = fieldInfo;
+
     this.iwBytesUsed = iwBytesUsed;
+
     hash =
         new BytesRefHash(
             pool,
             BytesRefHash.DEFAULT_CAPACITY,
             new DirectBytesStartArray(BytesRefHash.DEFAULT_CAPACITY, iwBytesUsed));
+
     pending = PackedLongValues.packedBuilder(PackedInts.COMPACT);
+
     docsWithField = new DocsWithFieldSet();
+
     bytesUsed =
         pending.ramBytesUsed()
             + docsWithField.ramBytesUsed()
             + RamUsageEstimator.sizeOf(currentValues);
+
     iwBytesUsed.addAndGet(bytesUsed);
   }
 
@@ -90,10 +96,12 @@ class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
 
     if (docID != currentDoc) {
       finishCurrentDoc();
+
       currentDoc = docID;
     }
 
     addOneValue(value);
+
     updateBytesUsed();
   }
 
@@ -102,30 +110,41 @@ class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
     if (currentDoc == -1) {
       return;
     }
+
     Arrays.sort(currentValues, 0, currentUpto);
+
     int lastValue = -1;
+
     int count = 0;
     for (int i = 0; i < currentUpto; i++) {
       int termID = currentValues[i];
+
       // if it's not a duplicate
       if (termID != lastValue) {
         pending.add(termID); // record the term id
         count++;
       }
+
       lastValue = termID;
     }
+
     // record the number of unique term ids for this doc
     if (pendingCounts != null) {
       pendingCounts.add(count);
     } else if (count != 1) {
       pendingCounts = PackedLongValues.deltaPackedBuilder(PackedInts.COMPACT);
+
       for (int i = 0; i < docsWithField.cardinality(); ++i) {
         pendingCounts.add(1);
       }
+
       pendingCounts.add(count);
     }
+
     maxCount = Math.max(maxCount, count);
+
     currentUpto = 0;
+
     docsWithField.add(currentDoc);
   }
 
@@ -143,10 +162,12 @@ class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
 
     if (currentUpto == currentValues.length) {
       currentValues = ArrayUtil.grow(currentValues, currentValues.length + 1);
+
       iwBytesUsed.addAndGet((currentValues.length - currentUpto) * Integer.BYTES);
     }
 
     currentValues[currentUpto] = termID;
+
     currentUpto++;
   }
 
@@ -156,7 +177,9 @@ class SortedSetDocValuesWriter extends DocValuesWriter<SortedSetDocValues> {
             + (pendingCounts == null ? 0 : pendingCounts.ramBytesUsed())
             + docsWithField.ramBytesUsed()
             + RamUsageEstimator.sizeOf(currentValues);
+
     iwBytesUsed.addAndGet(newBytesUsed - bytesUsed);
+
     bytesUsed = newBytesUsed;
   }
 

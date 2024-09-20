@@ -25,9 +25,11 @@ import org.apache.lucene.index.TermsEnum; // javadocs
  * @see TermsEnum#totalTermFreq
  */
 public class TermStats {
+  //词频
   /** How many documents have at least one occurrence of this term. */
   public final int docFreq;
 
+  //文档频率
   /** Total number of times this term occurs across all documents in the field. */
   public final long totalTermFreq;
 

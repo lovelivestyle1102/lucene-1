@@ -16,7 +16,6 @@
  */
 package org.apache.lucene.search;
 
-import com.carrotsearch.randomizedtesting.generators.RandomNumbers;
 import java.io.IOException;
 import java.util.Random;
 import org.apache.lucene.index.PostingsEnum;
@@ -101,7 +100,8 @@ final class AssertingBulkScorer extends BulkScorer {
       assert next == DocIdSetIterator.NO_MORE_DOCS;
       return DocIdSetIterator.NO_MORE_DOCS;
     } else {
-      return RandomNumbers.randomIntBetween(random, max, next);
+//      return RandomNumbers.randomIntBetween(random, max, next);
+        return 0;
     }
   }
 

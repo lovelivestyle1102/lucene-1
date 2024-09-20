@@ -28,9 +28,13 @@ import org.apache.lucene.index.SlowImpactsEnum;
  */
 public final class TermScorer extends Scorer {
   private final PostingsEnum postingsEnum;
+
   private final ImpactsEnum impactsEnum;
+
   private final DocIdSetIterator iterator;
+
   private final LeafSimScorer docScorer;
+
   private final ImpactsDISI impactsDisi;
 
   /** Construct a {@link TermScorer} that will iterate all documents. */
@@ -48,9 +52,13 @@ public final class TermScorer extends Scorer {
    */
   TermScorer(Weight weight, ImpactsEnum impactsEnum, LeafSimScorer docScorer) {
     super(weight);
+
     postingsEnum = this.impactsEnum = impactsEnum;
+
     impactsDisi = new ImpactsDISI(impactsEnum, impactsEnum, docScorer.getSimScorer());
+
     iterator = impactsDisi;
+
     this.docScorer = docScorer;
   }
 
@@ -72,6 +80,7 @@ public final class TermScorer extends Scorer {
   @Override
   public float score() throws IOException {
     assert docID() != DocIdSetIterator.NO_MORE_DOCS;
+
     return docScorer.score(postingsEnum.docID(), postingsEnum.freq());
   }
 

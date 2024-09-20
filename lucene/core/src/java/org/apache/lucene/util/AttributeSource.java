@@ -62,6 +62,7 @@ public class AttributeSource {
   // These two maps must always be in sync!!!
   // So they are private, final and read-only from the outside (read-only iterators)
   private final Map<Class<? extends Attribute>, AttributeImpl> attributes;
+
   private final Map<Class<? extends AttributeImpl>, AttributeImpl> attributeImpls;
   private final State[] currentState;
 
@@ -187,6 +188,7 @@ public class AttributeSource {
    */
   public final void addAttributeImpl(final AttributeImpl att) {
     final Class<? extends AttributeImpl> clazz = att.getClass();
+
     if (attributeImpls.containsKey(clazz)) return;
 
     // add all interfaces of this AttributeImpl to the maps
@@ -207,7 +209,9 @@ public class AttributeSource {
    * instance is created, added to this AttributeSource and returned.
    */
   public final <T extends Attribute> T addAttribute(Class<T> attClass) {
+    //首先查看缓存
     AttributeImpl attImpl = attributes.get(attClass);
+
     if (attImpl == null) {
       if (!(attClass.isInterface() && Attribute.class.isAssignableFrom(attClass))) {
         throw new IllegalArgumentException(
@@ -251,9 +255,11 @@ public class AttributeSource {
 
   private State getCurrentState() {
     State s = currentState[0];
+
     if (s != null || !hasAttributes()) {
       return s;
     }
+
     State c = s = currentState[0] = new State();
     final Iterator<AttributeImpl> it = attributeImpls.values().iterator();
     c.attribute = it.next();

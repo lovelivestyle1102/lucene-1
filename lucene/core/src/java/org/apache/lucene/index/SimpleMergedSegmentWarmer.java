@@ -42,10 +42,12 @@ public class SimpleMergedSegmentWarmer implements IndexReaderWarmer {
     for (FieldInfo info : reader.getFieldInfos()) {
       if (info.getIndexOptions() != IndexOptions.NONE) {
         reader.terms(info.name);
+
         indexedCount++;
 
         if (info.hasNorms()) {
           reader.getNormValues(info.name);
+
           normsCount++;
         }
       }
@@ -76,6 +78,7 @@ public class SimpleMergedSegmentWarmer implements IndexReaderWarmer {
     }
 
     reader.document(0);
+
     reader.getTermVectors(0);
 
     if (infoStream.isEnabled("SMSW")) {

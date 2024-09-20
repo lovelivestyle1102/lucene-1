@@ -37,28 +37,42 @@ import org.apache.lucene.util.packed.PackedLongValues;
  */
 class SortedDocValuesWriter extends DocValuesWriter<SortedDocValues> {
   final BytesRefHash hash;
+
   private final PackedLongValues.Builder pending;
+
   private final DocsWithFieldSet docsWithField;
+
   private final Counter iwBytesUsed;
+
   private long bytesUsed; // this currently only tracks differences in 'pending'
+
   private final FieldInfo fieldInfo;
+
   private int lastDocID = -1;
 
   private PackedLongValues finalOrds;
+
   private int[] finalSortedValues;
+
   private int[] finalOrdMap;
 
   public SortedDocValuesWriter(FieldInfo fieldInfo, Counter iwBytesUsed, ByteBlockPool pool) {
     this.fieldInfo = fieldInfo;
+
     this.iwBytesUsed = iwBytesUsed;
+
     hash =
         new BytesRefHash(
             pool,
             BytesRefHash.DEFAULT_CAPACITY,
             new DirectBytesStartArray(BytesRefHash.DEFAULT_CAPACITY, iwBytesUsed));
+
     pending = PackedLongValues.deltaPackedBuilder(PackedInts.COMPACT);
+
     docsWithField = new DocsWithFieldSet();
+
     bytesUsed = pending.ramBytesUsed() + docsWithField.ramBytesUsed();
+
     iwBytesUsed.addAndGet(bytesUsed);
   }
 
@@ -82,6 +96,7 @@ class SortedDocValuesWriter extends DocValuesWriter<SortedDocValues> {
     }
 
     addOneValue(value);
+
     docsWithField.add(docID);
 
     lastDocID = docID;
@@ -100,6 +115,7 @@ class SortedDocValuesWriter extends DocValuesWriter<SortedDocValues> {
     }
 
     pending.add(termID);
+
     updateBytesUsed();
   }
 
@@ -163,6 +179,7 @@ class SortedDocValuesWriter extends DocValuesWriter<SortedDocValues> {
     } else {
       sorted = null;
     }
+
     dvConsumer.addSortedField(
         fieldInfo,
         new EmptyDocValuesProducer() {
@@ -171,6 +188,7 @@ class SortedDocValuesWriter extends DocValuesWriter<SortedDocValues> {
             if (fieldInfoIn != fieldInfo) {
               throw new IllegalArgumentException("wrong fieldInfo");
             }
+
             final SortedDocValues buf =
                 new BufferedSortedDocValues(
                     hash, finalOrds, finalSortedValues, finalOrdMap, docsWithField.iterator());

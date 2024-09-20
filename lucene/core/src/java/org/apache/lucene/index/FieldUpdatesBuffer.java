@@ -123,10 +123,13 @@ final class FieldUpdatesBuffer {
 
   void add(String field, int docUpTo, int ord, boolean hasValue) {
     assert finished == false : "buffer was finished already";
+    // fields数组判断是否需要扩容,2个条件：
+    // 1.当前field和第一个field不一样
+    // 2.已经扩容过一次了，也就是fields.length != 1
     if (fields[0].equals(field) == false || fields.length != 1) {
       if (fields.length <= ord) {
         String[] array = ArrayUtil.grow(fields, ord + 1);
-        if (fields.length == 1) {
+        if (fields.length == 1) {// 如果是第一次扩容则从下标1到ord的值和fields[0]相同
           Arrays.fill(array, 1, ord, fields[0]);
         }
         bytesUsed.addAndGet(
@@ -139,10 +142,13 @@ final class FieldUpdatesBuffer {
       fields[ord] = field;
     }
 
+    // docsUpTo数组判断是否需要扩容,2个条件：
+    // 1.当前docUpTo和第一个docUpTo不一样
+    // 2.已经扩容过一次了，也就是docsUpTo.length != 1
     if (docsUpTo[0] != docUpTo || docsUpTo.length != 1) {
       if (docsUpTo.length <= ord) {
         int[] array = ArrayUtil.grow(docsUpTo, ord + 1);
-        if (docsUpTo.length == 1) {
+        if (docsUpTo.length == 1) {// 如果是第一次扩容则从下标1到ord的值和docsUpTo[0]相同
           Arrays.fill(array, 1, ord, docsUpTo[0]);
         }
         bytesUsed.addAndGet((array.length - docsUpTo.length) * Integer.BYTES);
@@ -151,8 +157,11 @@ final class FieldUpdatesBuffer {
       docsUpTo[ord] = docUpTo;
     }
 
+    // hasValues判断是否需要扩容,2个条件：
+    // 1.当前的更新是无值更新
+    // 2.hasValues已经初始化过了
     if (hasValue == false || hasValues != null) {
-      if (hasValues == null) {
+      if (hasValues == null) { // 第一次初始化，说明碰到的是第一个无值更新的，从0到ord都是有值更新
         hasValues = new FixedBitSet(ord + 1);
         hasValues.set(0, ord);
         bytesUsed.addAndGet(hasValues.ramBytesUsed());
@@ -162,7 +171,7 @@ final class FieldUpdatesBuffer {
         bytesUsed.addAndGet(fixedBitSet.ramBytesUsed() - hasValues.ramBytesUsed());
         hasValues = fixedBitSet;
       }
-      if (hasValue) {
+      if (hasValue) {// 按实际情况进行设置
         hasValues.set(ord);
       }
     }
@@ -170,15 +179,19 @@ final class FieldUpdatesBuffer {
 
   void addUpdate(Term term, long value, int docUpTo) {
     assert isNumeric;
+    // 记录更新的条件，并获取当前是第几次更新
     final int ord = append(term);
     String field = term.field;
     add(field, docUpTo, ord, true);
     minNumeric = Math.min(minNumeric, value);
     maxNumeric = Math.max(maxNumeric, value);
+    // numericValues数组判断是否需要扩容,2个条件：
+    // 1.当前value和第一个value不一样
+    // 2.已经扩容过一次了，也就是numericValues.length != 1
     if (numericValues[0] != value || numericValues.length != 1) {
       if (numericValues.length <= ord) {
         long[] array = ArrayUtil.grow(numericValues, ord + 1);
-        if (numericValues.length == 1) {
+        if (numericValues.length == 1) { // 如果是第一次扩容则从下标1到ord的值和numericValues[0]相同
           Arrays.fill(array, 1, ord, numericValues[0]);
         }
         bytesUsed.addAndGet((array.length - numericValues.length) * Long.BYTES);
@@ -210,10 +223,12 @@ final class FieldUpdatesBuffer {
       throw new IllegalStateException("buffer was finished already");
     }
     finished = true;
+    // 如果是对NumericDocValues更新，并且更新的值都相同，并且都是有值更新，并且term条件是同一个字段，则需要排序
     final boolean sortedTerms = hasSingleValue() && hasValues == null && fields.length == 1;
     if (sortedTerms) {
       // sort by ascending by term, then sort descending by docsUpTo so that we can skip updates
       // with lower docUpTo.
+      // 先按term升序排序，再按docsUpTo降序
       termSortState =
           termValues.sort(
               Comparator.naturalOrder(),

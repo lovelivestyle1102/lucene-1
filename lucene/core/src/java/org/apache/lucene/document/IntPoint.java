@@ -45,10 +45,14 @@ import org.apache.lucene.util.NumericUtils;
  * @see PointValues
  */
 public final class IntPoint extends Field {
+
   private static FieldType getType(int numDims) {
     FieldType type = new FieldType();
+
     type.setDimensions(numDims, Integer.BYTES);
+
     type.freeze();
+
     return type;
   }
 
@@ -87,8 +91,11 @@ public final class IntPoint extends Field {
               + type.pointDimensionCount()
               + " dimensions; cannot convert to a single numeric value");
     }
+
     BytesRef bytes = (BytesRef) fieldsData;
+
     assert bytes.length == Integer.BYTES;
+
     return decodeDimension(bytes.bytes, bytes.offset);
   }
 
@@ -102,9 +109,11 @@ public final class IntPoint extends Field {
     if (point == null) {
       throw new IllegalArgumentException("point must not be null");
     }
+
     if (point.length == 0) {
       throw new IllegalArgumentException("point must not be 0 dimensions");
     }
+
     byte[] packed = new byte[point.length * Integer.BYTES];
 
     for (int dim = 0; dim < point.length; dim++) {

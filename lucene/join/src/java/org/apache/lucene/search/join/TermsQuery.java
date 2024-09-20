@@ -39,11 +39,14 @@ class TermsQuery extends MultiTermQuery implements Accountable {
       RamUsageEstimator.shallowSizeOfInstance(TermsQuery.class);
 
   private final BytesRefHash terms;
+
   private final int[] ords;
 
   // These fields are used for equals() and hashcode() only
   private final String fromField;
+
   private final Query fromQuery;
+
   // id of the context rather than the context itself in order not to hold references to index
   // readers
   private final Object indexReaderContextId;

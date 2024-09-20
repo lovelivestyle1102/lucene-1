@@ -26,12 +26,14 @@ import org.apache.lucene.search.similarities.Similarity.SimScorer;
 public final class LeafSimScorer {
 
   private final SimScorer scorer;
+
   private final NumericDocValues norms;
 
   /** Sole constructor: Score documents of {@code reader} with {@code scorer}. */
   public LeafSimScorer(SimScorer scorer, LeafReader reader, String field, boolean needsScores)
       throws IOException {
     this.scorer = Objects.requireNonNull(scorer);
+
     norms = needsScores ? reader.getNormValues(field) : null;
   }
 

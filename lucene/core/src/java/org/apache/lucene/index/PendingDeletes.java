@@ -175,7 +175,9 @@ class PendingDeletes {
     }
 
     Bits liveDocs = this.liveDocs;
+
     assert liveDocs != null;
+
     // We have new deletes
     assert liveDocs.length() == info.info.maxDoc();
 
@@ -190,9 +192,11 @@ class PendingDeletes {
     boolean success = false;
     try {
       Codec codec = info.info.getCodec();
+
       codec
           .liveDocsFormat()
           .writeLiveDocs(liveDocs, trackingDir, info, pendingDeleteCount, IOContext.DEFAULT);
+
       success = true;
     } finally {
       if (!success) {
@@ -211,8 +215,11 @@ class PendingDeletes {
     // then info's delGen remains pointing to the previous
     // (successfully written) del docs:
     info.advanceDelGen();
+
     info.setDelCount(info.getDelCount() + pendingDeleteCount);
+
     dropChanges();
+
     return true;
   }
 

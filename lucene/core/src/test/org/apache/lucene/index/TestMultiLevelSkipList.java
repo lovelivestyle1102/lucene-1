@@ -62,29 +62,39 @@ public class TestMultiLevelSkipList extends LuceneTestCase {
 
   public void testSimpleSkip() throws IOException {
     Directory dir = new CountingDirectory(new ByteBuffersDirectory());
+
     IndexWriter writer =
         new IndexWriter(
             dir,
             newIndexWriterConfig(new PayloadAnalyzer())
                 .setCodec(TestUtil.alwaysPostingsFormat(TestUtil.getDefaultPostingsFormat()))
                 .setMergePolicy(newLogMergePolicy()));
+
     Term term = new Term("test", "a");
+
     for (int i = 0; i < 5000; i++) {
       Document d1 = new Document();
       d1.add(newTextField(term.field(), term.text(), Field.Store.NO));
       writer.addDocument(d1);
     }
+
     writer.commit();
+
     writer.forceMerge(1);
+
     writer.close();
 
     LeafReader reader = getOnlyLeafReader(DirectoryReader.open(dir));
 
     for (int i = 0; i < 2; i++) {
       counter = 0;
+
       PostingsEnum tp = reader.postings(term, PostingsEnum.ALL);
+
       checkSkipTo(tp, 14, 185); // no skips
+
       checkSkipTo(tp, 17, 190); // one skip on level 0
+
       checkSkipTo(tp, 287, 200); // one skip on level 1, two on level 0
 
       // this test would fail if we had only one skip level,
@@ -95,16 +105,22 @@ public class TestMultiLevelSkipList extends LuceneTestCase {
 
   public void checkSkipTo(PostingsEnum tp, int target, int maxCounter) throws IOException {
     tp.advance(target);
+
     if (maxCounter < counter) {
       fail("Too many bytes read: " + counter + " vs " + maxCounter);
     }
 
     assertEquals(
         "Wrong document " + tp.docID() + " after skipTo target " + target, target, tp.docID());
+
     assertEquals("Frequency is not 1: " + tp.freq(), 1, tp.freq());
+
     tp.nextPosition();
+
     BytesRef b = tp.getPayload();
+
     assertEquals(1, b.length);
+
     assertEquals(
         "Wrong payload for the target " + target + ": " + b.bytes[b.offset],
         (byte) target,

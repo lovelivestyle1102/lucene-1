@@ -46,24 +46,31 @@ class SortedNumericDocValuesWriter extends DocValuesWriter<SortedNumericDocValue
 
   SortedNumericDocValuesWriter(FieldInfo fieldInfo, Counter iwBytesUsed) {
     this.fieldInfo = fieldInfo;
+
     this.iwBytesUsed = iwBytesUsed;
+
     pending = PackedLongValues.deltaPackedBuilder(PackedInts.COMPACT);
+
     docsWithField = new DocsWithFieldSet();
+
     bytesUsed =
         pending.ramBytesUsed()
             + docsWithField.ramBytesUsed()
             + RamUsageEstimator.sizeOf(currentValues);
+
     iwBytesUsed.addAndGet(bytesUsed);
   }
 
   public void addValue(int docID, long value) {
     assert docID >= currentDoc;
+
     if (docID != currentDoc) {
       finishCurrentDoc();
       currentDoc = docID;
     }
 
     addOneValue(value);
+
     updateBytesUsed();
   }
 
@@ -72,20 +79,26 @@ class SortedNumericDocValuesWriter extends DocValuesWriter<SortedNumericDocValue
     if (currentDoc == -1) {
       return;
     }
+
     Arrays.sort(currentValues, 0, currentUpto);
+
     for (int i = 0; i < currentUpto; i++) {
       pending.add(currentValues[i]);
     }
+
     // record the number of values for this doc
     if (pendingCounts != null) {
       pendingCounts.add(currentUpto);
     } else if (currentUpto != 1) {
       pendingCounts = PackedLongValues.deltaPackedBuilder(PackedInts.COMPACT);
+
       for (int i = 0; i < docsWithField.cardinality(); ++i) {
         pendingCounts.add(1);
       }
+
       pendingCounts.add(currentUpto);
     }
+
     currentUpto = 0;
 
     docsWithField.add(currentDoc);
@@ -97,6 +110,7 @@ class SortedNumericDocValuesWriter extends DocValuesWriter<SortedNumericDocValue
     }
 
     currentValues[currentUpto] = value;
+
     currentUpto++;
   }
 
@@ -106,7 +120,9 @@ class SortedNumericDocValuesWriter extends DocValuesWriter<SortedNumericDocValue
             + (pendingCounts == null ? 0 : pendingCounts.ramBytesUsed())
             + docsWithField.ramBytesUsed()
             + RamUsageEstimator.sizeOf(currentValues);
+
     iwBytesUsed.addAndGet(newBytesUsed - bytesUsed);
+
     bytesUsed = newBytesUsed;
   }
 

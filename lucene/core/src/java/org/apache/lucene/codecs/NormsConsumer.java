@@ -113,12 +113,17 @@ public abstract class NormsConsumer implements Closeable {
             }
 
             List<NumericDocValuesSub> subs = new ArrayList<>();
+
             assert mergeState.docMaps.length == mergeState.docValuesProducers.length;
+
             for (int i = 0; i < mergeState.docValuesProducers.length; i++) {
               NumericDocValues norms = null;
+
               NormsProducer normsProducer = mergeState.normsProducers[i];
+
               if (normsProducer != null) {
                 FieldInfo readerFieldInfo = mergeState.fieldInfos[i].fieldInfo(mergeFieldInfo.name);
+
                 if (readerFieldInfo != null && readerFieldInfo.hasNorms()) {
                   norms = normsProducer.getNorms(readerFieldInfo);
                 }

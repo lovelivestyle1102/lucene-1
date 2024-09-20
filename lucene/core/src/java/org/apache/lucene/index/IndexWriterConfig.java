@@ -132,6 +132,7 @@ public final class IndexWriterConfig extends LiveIndexWriterConfig {
    * problem you should switch to {@link LogByteSizeMergePolicy} or {@link LogDocMergePolicy}.
    */
   public IndexWriterConfig() {
+    //指定默认分词器
     this(new StandardAnalyzer());
   }
 

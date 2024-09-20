@@ -19,9 +19,20 @@ package org.apache.lucene.analysis;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.util.LuceneTestCase;
 
 public class TestAnalyzerWrapper extends LuceneTestCase {
+
+  public void testAnalyzer() throws IOException {
+      Analyzer analyzer = new StandardAnalyzer();
+      TokenStream tokenStream = analyzer.tokenStream("content", "这是中华民族五千年历史的沉淀");
+      tokenStream.reset();
+      while(tokenStream.incrementToken()){
+          System.out.println(tokenStream);
+      }
+  }
 
   public void testSourceDelegation() throws IOException {
 

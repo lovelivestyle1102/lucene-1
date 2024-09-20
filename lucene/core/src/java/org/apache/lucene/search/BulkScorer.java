@@ -36,6 +36,7 @@ public abstract class BulkScorer {
    */
   public void score(LeafCollector collector, Bits acceptDocs) throws IOException {
     final int next = score(collector, acceptDocs, 0, DocIdSetIterator.NO_MORE_DOCS);
+
     assert next == DocIdSetIterator.NO_MORE_DOCS;
   }
 

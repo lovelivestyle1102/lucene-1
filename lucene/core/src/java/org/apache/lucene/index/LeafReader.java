@@ -72,10 +72,13 @@ public abstract class LeafReader extends IndexReader {
   @Override
   public final int docFreq(Term term) throws IOException {
     final Terms terms = terms(term.field());
+
     if (terms == null) {
       return 0;
     }
+
     final TermsEnum termsEnum = terms.iterator();
+
     if (termsEnum.seekExact(term.bytes())) {
       return termsEnum.docFreq();
     } else {
@@ -91,10 +94,13 @@ public abstract class LeafReader extends IndexReader {
   @Override
   public final long totalTermFreq(Term term) throws IOException {
     final Terms terms = terms(term.field());
+
     if (terms == null) {
       return 0;
     }
+
     final TermsEnum termsEnum = terms.iterator();
+
     if (termsEnum.seekExact(term.bytes())) {
       return termsEnum.totalTermFreq();
     } else {

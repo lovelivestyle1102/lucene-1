@@ -36,28 +36,37 @@ final class BooleanWeight extends Weight {
 
   private static class WeightedBooleanClause {
     final BooleanClause clause;
+
     final Weight weight;
 
     WeightedBooleanClause(BooleanClause clause, Weight weight) {
       this.clause = clause;
+
       this.weight = weight;
     }
   }
 
   final ArrayList<WeightedBooleanClause> weightedClauses;
+
   final ScoreMode scoreMode;
 
   BooleanWeight(BooleanQuery query, IndexSearcher searcher, ScoreMode scoreMode, float boost)
       throws IOException {
     super(query);
+
     this.query = query;
+
     this.scoreMode = scoreMode;
+
     this.similarity = searcher.getSimilarity();
+
     weightedClauses = new ArrayList<>();
+
     for (BooleanClause c : query) {
       Weight w =
           searcher.createWeight(
               c.getQuery(), c.isScoring() ? scoreMode : ScoreMode.COMPLETE_NO_SCORES, boost);
+
       weightedClauses.add(new WeightedBooleanClause(c, w));
     }
   }
@@ -126,23 +135,30 @@ final class BooleanWeight extends Weight {
   @Override
   public Matches matches(LeafReaderContext context, int doc) throws IOException {
     final int minShouldMatch = query.getMinimumNumberShouldMatch();
+
     List<Matches> matches = new ArrayList<>();
+
     int shouldMatchCount = 0;
+
     for (WeightedBooleanClause wc : weightedClauses) {
       Weight w = wc.weight;
+
       BooleanClause bc = wc.clause;
+
       Matches m = w.matches(context, doc);
       if (bc.isProhibited()) {
         if (m != null) {
           return null;
         }
       }
+
       if (bc.isRequired()) {
         if (m == null) {
           return null;
         }
         matches.add(m);
       }
+
       if (bc.getOccur() == Occur.SHOULD) {
         if (m != null) {
           matches.add(m);
@@ -150,9 +166,11 @@ final class BooleanWeight extends Weight {
         }
       }
     }
+
     if (shouldMatchCount < minShouldMatch) {
       return null;
     }
+
     return MatchesUtils.fromSubMatches(matches);
   }
 
@@ -194,10 +212,12 @@ final class BooleanWeight extends Weight {
     List<BulkScorer> optional = new ArrayList<BulkScorer>();
     for (WeightedBooleanClause wc : weightedClauses) {
       Weight w = wc.weight;
+
       BooleanClause c = wc.clause;
       if (c.getOccur() != Occur.SHOULD) {
         continue;
       }
+
       BulkScorer subScorer = w.bulkScorer(context);
 
       if (subScorer != null) {
@@ -228,19 +248,25 @@ final class BooleanWeight extends Weight {
 
     for (WeightedBooleanClause wc : weightedClauses) {
       Weight w = wc.weight;
+
       BooleanClause c = wc.clause;
+
       if (c.isRequired() == false) {
         continue;
       }
+
       if (scorer != null) {
         // we don't have a BulkScorer for conjunctions
         return null;
       }
+
       scorer = w.bulkScorer(context);
+
       if (scorer == null) {
         // no matches
         return null;
       }
+
       if (c.isScoring() == false && scoreMode.needsScores()) {
         scorer = disableScoring(scorer);
       }
@@ -334,6 +360,7 @@ final class BooleanWeight extends Weight {
       // so that we can dynamically prune non-competitive hits.
       return super.bulkScorer(context);
     }
+
     final BulkScorer bulkScorer = booleanScorer(context);
     if (bulkScorer != null) {
       // bulk scoring is applicable, use it

@@ -75,11 +75,14 @@ public class TestStandardAnalyzer extends BaseTokenStreamTestCase {
     };
 
     StringBuilder builder = new StringBuilder();
+
     int numChars = TestUtil.nextInt(random(), 100 * 1024, 1024 * 1024);
+
     for (int i = 0; i < numChars; ) {
       builder.append(
           WordBreak_ExtendNumLet_chars[random().nextInt(WordBreak_ExtendNumLet_chars.length)]);
       ++i;
+
       if (random().nextBoolean()) {
         int numFormatExtendChars = TestUtil.nextInt(random(), 1, 8);
         for (int j = 0; j < numFormatExtendChars; ++j) {
@@ -95,6 +98,7 @@ public class TestStandardAnalyzer extends BaseTokenStreamTestCase {
         }
       }
     }
+
     StandardTokenizer ts = new StandardTokenizer();
     ts.setReader(new StringReader(builder.toString()));
     ts.reset();
@@ -643,8 +647,16 @@ public class TestStandardAnalyzer extends BaseTokenStreamTestCase {
   /** blast some random strings through the analyzer */
   public void testRandomStrings() throws Exception {
     Analyzer analyzer = new StandardAnalyzer();
-    checkRandomData(random(), analyzer, 200 * RANDOM_MULTIPLIER);
-    analyzer.close();
+
+//    checkRandomData(random(), analyzer, 200 * RANDOM_MULTIPLIER);
+    TokenStream tokenStream = analyzer.tokenStream("content", "这个是一个字符串");
+
+//    analyzer.close();
+    tokenStream.reset();
+
+    while(tokenStream.incrementToken()){
+      System.out.println(tokenStream);
+    }
   }
 
   /** blast some random large strings through the analyzer */

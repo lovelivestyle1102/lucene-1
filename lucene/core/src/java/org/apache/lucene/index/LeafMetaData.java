@@ -26,8 +26,13 @@ import org.apache.lucene.util.Version;
  */
 public final class LeafMetaData {
 
+  //描述了SegmentReader读取的段所属的Segment_N文件，它是创建时的Lucene的主版本（major）号
   private final int createdVersionMajor;
+
+  //该值通过.si索引文件获得
   private final Version minVersion;
+
+  //描述了段中的文档的排序规则
   private final Sort sort;
 
   /** Expert: Sole constructor. Public for use by custom {@link LeafReader} impls. */

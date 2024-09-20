@@ -37,7 +37,9 @@ public class TestDemoEmbeddings extends LuceneTestCase {
         // test garbage
         float[] garbageVector =
             demoEmbeddings.computeEmbedding("garbagethathasneverbeen seeneverinlife");
+
         assertEquals(50, garbageVector.length);
+
         assertArrayEquals(new float[50], garbageVector, 0);
 
         // test space

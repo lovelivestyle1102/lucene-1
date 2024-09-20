@@ -31,20 +31,35 @@ import org.apache.lucene.index.VectorValues;
 public class FieldType implements IndexableFieldType {
 
   private boolean stored;
+
   private boolean tokenized = true;
+
   private boolean storeTermVectors;
+
   private boolean storeTermVectorOffsets;
+
   private boolean storeTermVectorPositions;
+
   private boolean storeTermVectorPayloads;
+
   private boolean omitNorms;
+
   private IndexOptions indexOptions = IndexOptions.NONE;
+
   private boolean frozen;
+
   private DocValuesType docValuesType = DocValuesType.NONE;
+
   private int dimensionCount;
+
   private int indexDimensionCount;
+
   private int dimensionNumBytes;
+
   private int vectorDimension;
+
   private VectorSimilarityFunction vectorSimilarityFunction = VectorSimilarityFunction.EUCLIDEAN;
+
   private Map<String, String> attributes;
 
   /** Create a new mutable FieldType with all of the properties from <code>ref</code> */
@@ -351,7 +366,9 @@ public class FieldType implements IndexableFieldType {
     }
 
     this.dimensionCount = dimensionCount;
+
     this.indexDimensionCount = indexDimensionCount;
+
     this.dimensionNumBytes = dimensionNumBytes;
   }
 
@@ -374,9 +391,11 @@ public class FieldType implements IndexableFieldType {
   public void setVectorDimensionsAndSimilarityFunction(
       int numDimensions, VectorSimilarityFunction distFunc) {
     checkIfFrozen();
+
     if (numDimensions <= 0) {
       throw new IllegalArgumentException("vector numDimensions must be > 0; got " + numDimensions);
     }
+
     if (numDimensions > VectorValues.MAX_DIMENSIONS) {
       throw new IllegalArgumentException(
           "vector numDimensions must be <= VectorValues.MAX_DIMENSIONS (="
@@ -384,7 +403,9 @@ public class FieldType implements IndexableFieldType {
               + "); got "
               + numDimensions);
     }
+
     this.vectorDimension = numDimensions;
+
     this.vectorSimilarityFunction = Objects.requireNonNull(distFunc);
   }
 
@@ -412,9 +433,11 @@ public class FieldType implements IndexableFieldType {
    */
   public String putAttribute(String key, String value) {
     checkIfFrozen();
+
     if (attributes == null) {
       attributes = new HashMap<>();
     }
+
     return attributes.put(key, value);
   }
 
@@ -430,48 +453,67 @@ public class FieldType implements IndexableFieldType {
     if (stored()) {
       result.append("stored");
     }
+
     if (indexOptions != IndexOptions.NONE) {
       if (result.length() > 0) result.append(",");
+
       result.append("indexed");
+
       if (tokenized()) {
         result.append(",tokenized");
       }
+
       if (storeTermVectors()) {
         result.append(",termVector");
       }
+
       if (storeTermVectorOffsets()) {
         result.append(",termVectorOffsets");
       }
+
       if (storeTermVectorPositions()) {
         result.append(",termVectorPosition");
       }
+
       if (storeTermVectorPayloads()) {
         result.append(",termVectorPayloads");
       }
+
       if (omitNorms()) {
         result.append(",omitNorms");
       }
+
       if (indexOptions != IndexOptions.DOCS_AND_FREQS_AND_POSITIONS) {
         result.append(",indexOptions=");
         result.append(indexOptions);
       }
     }
+
     if (dimensionCount != 0) {
       if (result.length() > 0) {
         result.append(",");
       }
+
       result.append("pointDimensionCount=");
+
       result.append(dimensionCount);
+
       result.append(",pointIndexDimensionCount=");
+
       result.append(indexDimensionCount);
+
       result.append(",pointNumBytes=");
+
       result.append(dimensionNumBytes);
     }
+
     if (docValuesType != DocValuesType.NONE) {
       if (result.length() > 0) {
         result.append(",");
       }
+
       result.append("docValuesType=");
+
       result.append(docValuesType);
     }
 

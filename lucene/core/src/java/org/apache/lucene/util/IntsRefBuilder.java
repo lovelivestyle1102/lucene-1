@@ -23,6 +23,7 @@ package org.apache.lucene.util;
  */
 public class IntsRefBuilder {
 
+  //上次输入内容
   private final IntsRef ref;
 
   /** Sole constructor. */
